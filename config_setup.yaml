@@ -1,0 +1,17 @@
+# Specify the data you would like to analyze here
+
+# ensembles and singleruns: enter a list of strings, or leave as an empty list
+# experiment needs to be specified for the ensembles
+# comparemaps: list of lists of form [[model1a,model2a,var_a],[model1b,model2b,var_b],...]
+models: 
+    ensembles: []
+    singleruns: []
+    experiment: ''
+    comparemaps: []
+
+# what and when to plot; where to save output
+setup:
+    year_start: 
+    year_end: 
+    variables: ['aod'] # a list containing 'aod', 'dod', or both
+    savename: '' # a string ending in .pdf

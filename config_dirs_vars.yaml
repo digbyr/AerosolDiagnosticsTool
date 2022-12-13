@@ -1,0 +1,22 @@
+# input the paths to your data here
+# see documentation for expected directory structure
+
+directory_path:
+  models: '/enter/path/here/'
+  misr:   '/enter/path/here/'
+  modis:  '/enter/path/here/'
+  midas:  '/enter/path/here/'
+  caliop: '/enter/path/here/'
+
+# input any files you want read that aren't in the above structure
+
+single_files:
+  enter-key: '/enter/path/here/' 
+
+# input the variable names used in the model data here
+
+variable_name:
+  lat: lat
+  lon: lon
+  aod: od550aer
+  dod: od550dust
