@@ -1,4 +1,4 @@
-# AerosolDiagnosticsTool
+# Aerosol Diagnostics Tool
 
 **The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD) and dust (DOD) optical depth analyses are currently supported.** 
 
