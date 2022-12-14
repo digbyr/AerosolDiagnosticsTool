@@ -2,14 +2,18 @@
 
 **The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD) and dust (DOD) optical depth analyses are currently supported.** 
 
-The Aerosol Diagnostics Tool consists of a main analysis script, a data-reader utility, and a config file. 
-  * The **main analysis script** is provided as both a python script (.py) and an interactive jupyter notebook (.ipynb). User input is required to specify the models, years, and variables to be plotted; the location in which these details are specified is clearly indicated in the scripts, and further explanation is provided in the wiki. Throughout the wiki, references to aerosol_diagnostics.py refer equally to the .ipynb notebook version.
-  * The **data-reader utility** reads and processes observed and simulated optical depth fields for use in the analysis script. It should run without any user input, although it does make certain assumptions about directory structure. These assumptions are outlined in the wiki. All datasets, including the reference observations, need to be provided by the user.
-  * The **config file** needs to be filled out by the user. It specifies the paths to the different datasets and the variable names used in the simulated datasets (see wiki for details).
+The Aerosol Diagnostics Tool consists of a main analysis script, two config files, and a small number of utility scripts. 
+  * The **main analysis script** is provided as both a python script (*aerosol_diagnostics.py*) and an interactive jupyter notebook (*aerosol_diagnostics.ipynb*). This script reads in user-specified parameters from config_setup.yaml and outputs aerosol diagnostic figures in a multi-page pdf. Throughout the wiki, references to aerosol_diagnostics.py refer equally to the .ipynb notebook version.
+  * The **config files** need to be filled out by the user. There are two: 
+      * *config_setup.yaml* specifies the models to be evaluated, the years + variables to be compared, and the name of the output pdf. 
+      * *config_dirs_vars.yaml* specifies the paths to the different datasets and the variable names used in the simulated datasets.
+  * The **utility scripts** are mainly responsible for reading and processes observed and simulated optical depth fields for use in the analysis script. They should run without any user input, although *datareaders.py* does make certain assumptions about directory structure. These assumptions are outlined in the wiki. One utility script, *taylorDiagram.py*, is used for plotting. It was developed by Yannick Copin, and all rights belong to him.
+  
+  
 
 **The wiki provides documentation on:**
   * The python packages required for the Aerosol Diagnostic Tool to run;
-  * Instructions for filling out the config file, and expected directory structure in which data should be organized;
+  * Instructions for filling out the config files, and expected directory structure in which data should be organized;
   * The observational datasets used (a brief overview of each instrument, and where to find the data);
-  * The inputs required for each function in the data-reader and analysis scripts
+  * The inputs required for each function in the data-reader and analysis scripts.
 
