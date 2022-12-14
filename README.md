@@ -10,14 +10,15 @@ The Aerosol Diagnostics Tool consists of a main analysis script, two config file
   * The **utility scripts** are mainly responsible for reading and processes observed and simulated optical depth fields for use in the analysis script. They should run without any user input, although *datareaders.py* does make certain assumptions about directory structure. These assumptions are outlined in the wiki. One utility script, *taylorDiagram.py*, is used for plotting. It was developed by Yannick Copin, and all rights belong to him. The original can be found at https://gist.github.com/ycopin/3342888. 
   
 
-**The wiki provides documentation on:**
-  * The python packages required for the Aerosol Diagnostic Tool to run;
-  * Instructions for filling out the config files, and expected directory structure in which data should be organized;
-  * The observational datasets used (a brief overview of each instrument, and where to find the data);
-  * The inputs required for each function in the data-reader and analysis scripts.
-
-
 **High-level instructions for using the Aerosol Diagnostics Tool**
   1. download all of the observational data following the guidelines in the wiki
   2. fill out the config files
   3. run the python script or interactive jupyter notebook
+
+
+**The wiki provides documentation on:**
+  * The python packages required for the Aerosol Diagnostic Tool to run;
+  * Instructions for filling out the config files, and expected directory structure in which data should be organized;
+  * The observational datasets used (a brief overview of each instrument, and where to find the data);
+  * The inputs used by each function in the data-reader and analysis scripts.
+
