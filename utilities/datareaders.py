@@ -32,8 +32,8 @@ import yaml
 import calendar
 from datetime import datetime
 
-#from tqdm import tqdm  # if calling from command line or .py
-from tqdm.notebook import tqdm  # if calling from ipynb
+from tqdm import tqdm  # if calling from command line or .py
+#from tqdm.notebook import tqdm  # if calling from ipynb
 
 import warnings
 warnings.filterwarnings(action='ignore',message='invalid value encountered in reduce')
@@ -84,7 +84,31 @@ def standardize_grid(ds):
     return ds
 
 
+#-------------------------------------------------------------------------
+#  Standardize time coordinate: make into datetime if not
+#-------------------------------------------------------------------------
 
+def standardize_time(ds,years,months):
+    
+    # get a reference time value to assess
+    d0 = ds.time.values[0]
+    
+    # some models: time coord is just months (arbitrarily assign to y=yf)
+    if np.array_equal(ds.time.values,months): 
+        newtime = np.array([datetime(years[-1],m,15) for m in months])
+        ds = ds.assign_coords({'time':newtime})
+        
+    # some models: time is YYYYMM as str/int/float
+    elif isinstance(d0,(str,int,float)):
+        if len(str(int(d0)))==6:
+            dstrs = [str(date) for date in ds.time.values]
+            newtime = np.array([datetime(int(dstr[0:4]),int(dstr[4:6]),15) for dstr in dstrs])
+            ds = ds.assign_coords({'time':newtime})
+
+    # space to add more exceptions if needed
+    return ds
+
+   
 #-----------------------------------------------------------------------------
 #  Read Model Ensemble Data (assuming dir structure /model/experiment/var/)
 #-----------------------------------------------------------------------------
@@ -106,7 +130,12 @@ def read_ensemble(model,expt,var,t0,tf):
     flist = glob.glob(dpath+'*nc')
     t0,tf,years,months = interpret_t0tf(t0,tf)
     
-    dslist = [xr.open_dataset(f).sel(time=slice(t0,tf)) for f in tqdm(flist)]
+    try: 
+        dslist = [xr.open_dataset(f).sel(time=slice(t0,tf)) for f in tqdm(flist)]
+    except: 
+        dslist = [standardize_time(xr.open_dataset(f),years,months) for f in tqdm(flist)]
+        dslist = [ds.sel(time=slice(t0,tf)) for ds in dslist]
+        
     runs = np.array([ds.variant_label for ds in dslist])
     ds = xr.concat(dslist,pd.Index(runs,name='run'))
     for dsi in dslist: dsi.close()
@@ -128,19 +157,7 @@ def read_singlefile(model,t0,tf):
     ds = xr.open_dataset(dpath)
     
     t0,tf,years,months = interpret_t0tf(t0,tf)
-    
-    # some models: time axis is only months
-    if np.array_equal(ds.time.values,months): 
-        newtime = np.array([datetime(years[-1],m,15) for m in months])
-        ds = ds.assign_coords({'time':newtime})
-        
-    # some models: time is YYYYMM as str/int/float
-    elif len(str(int(ds.time.values[0])))==6:
-        dstrs = [str(date) for date in ds.time.values]
-        newtime = np.array([datetime(int(dstr[0:4]),int(dstr[4:6]),15) for dstr in dstrs])
-        ds = ds.assign_coords({'time':newtime})
-    
-    ds = ds.sel(time=slice(t0,tf))
+    ds = standardize_time(ds,years,months).sel(time=slice(t0,tf))
 
     inv_keys = {v: k for k, v in config['variable_name'].items() if v in list(ds.variables)}
     ds = ds.rename(inv_keys)
@@ -241,16 +258,57 @@ def open_modis_file(sat,y,m):
 
 
 
+
 #-----------------------------------------------------------------------------
-#  Read MIDAS dust product
+#  Read MIDAS 1x1 degree product
+#-----------------------------------------------------------------------------
+
+def read_midas1x1(t0,tf):
+    
+    print('reading MIDAS DOD at 1x1deg from %s to %s'%(str(t0),str(tf)))
+    print('progress bar = years')
+    
+    dpath = config['directory_path']['midas1x1']
+    fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+    dslist = []
+    
+    for y in tqdm(years):
+        for m in months: 
+            
+            flist = glob.glob(dpath+'%d/%s-%d%02d*nc'%(y,fbase,y,m))
+            dsi = xr.open_mfdataset(flist,drop_variables=['Latitude','Longitude']).mean('Time')
+    
+            nc = ncDataset(flist[0])
+            coords = {'Longitude':nc['Longitude'][0,:].data,
+                      'Latitude':nc['Latitude'][:,0].data,
+                      'time':np.datetime64('%d-%02d-15'%(y,m))}
+        
+            dsi = dsi.assign_coords(coords)[['Modis-total-dust-optical-depth-at-550nm']]
+            dsi = dsi.rename({'Latitude':'lat','Longitude':'lon',
+                              'Modis-total-dust-optical-depth-at-550nm':'dod'})
+            dslist.extend([dsi])
+
+    ds = xr.concat(dslist,dim='time')
+    for dsi in dslist: dsi.close()
+    ds = standardize_grid(ds)
+    
+    return ds
+
+
+
+
+
+#-----------------------------------------------------------------------------
+#  Read MIDAS 0.1x0.1 degree product
 #-----------------------------------------------------------------------------
 
 def read_midas(t0,tf):
     
-    print('reading MIDAS DOD from %s to %s'%(str(t0),str(tf)))
+    print('reading MIDAS DOD at 0.1x0.1deg from %s to %s'%(str(t0),str(tf)))
     print('progress bar = years')
     
-    dpath = config['directory_path']['midas']
+    dpath = config['directory_path']['midas01x01']
     fbase = 'MODIS-AQUA-C061_AOD-and-DOD-V1-GRID_RESOLUTION_0.1-'
     t0,tf,years,months = interpret_t0tf(t0,tf)
 
@@ -346,6 +404,26 @@ def caliop_dummy(ref,y,m,var):
     ds = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
                     coords={'lat':lats,'lon':lons,
                             'time':datetime(y,m,15)})
+    return ds
+
+
+
+#-----------------------------------------------------------------------------
+#  Read Voss dust product
+#-----------------------------------------------------------------------------
+
+def read_voss(t0,tf):
+    
+    print('reading Voss DOD from %s to %s'%(str(t0),str(tf)))
+    
+    dpath = config['directory_path']['voss']
+    ds = xr.open_dataset(dpath+'Voss2020_DAOD_monthly_MODIS.nc')
+    newtime = np.array([np.datetime64(datetime.fromordinal(datenum).strftime('%Y-%m-%d')) 
+                        for datenum in ds.time.values.astype(int)])
+    ds = ds.assign_coords({'time':newtime}).rename({'daod':'dod'})
+    ds = ds.sel(time=slice(str(t0),str(tf)))
+    ds = standardize_grid(ds)
+    
     return ds
 
 
