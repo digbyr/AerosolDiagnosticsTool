@@ -32,8 +32,8 @@ import yaml
 import calendar
 from datetime import datetime
 
-from tqdm import tqdm  # if calling from command line or .py
-#from tqdm.notebook import tqdm  # if calling from ipynb
+#from tqdm import tqdm  # if calling from command line or .py
+from tqdm.notebook import tqdm  # if calling from ipynb
 
 import warnings
 warnings.filterwarnings(action='ignore',message='invalid value encountered in reduce')

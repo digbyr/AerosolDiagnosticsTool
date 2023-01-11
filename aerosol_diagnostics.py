@@ -91,11 +91,11 @@ def gather_data(var):
     if var=='aod':
         obsdata = {'MODIS Aqua':readers.read_modis('Aqua',y0,yf),
                    'MISR':readers.read_misr(y0,yf),
-                   'CALIOP':readers.read_caliop('AllSky','Night','aod',y0,yf)}
+                   'CALIOP':readers.read_caliop('AllSky','Night','aod',max(y0,2007),yf)}
     
     elif var=='dod':
         obsdata = {'MIDAS':readers.read_midas_01x01(y0,yf),
-                   'CALIOP':readers.read_caliop('AllSky','Night','dod',y0,yf)}
+                   'CALIOP':readers.read_caliop('AllSky','Night','dod',max(y0,2007),yf)}
 
     return simdata,obsdata
 
