@@ -23,7 +23,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import yaml
 import calendar
 import warnings
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 warnings.filterwarnings(action='ignore',message='Input array is not C_CONTIGUOUS')
 warnings.filterwarnings(action='ignore',message='elementwise comparison failed; returning scalar instead,')
