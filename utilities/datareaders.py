@@ -224,11 +224,17 @@ def read_modis(sat,t0,tf):
 
 def open_modis_file(sat,y,m):
 
-    dpath = config['directory_path']['modis']
-    satstr = {'Aqua':'MY','Terra':'MO'}[sat]
+    baseweeks = ['001','032','060','091','121','152',
+                 '182','213','244','274','305','335']
+    leapweeks = ['001','032','061','092','122','153',
+                 '183','214','245','275','306','336']
 
-    ddir = '%sD08_M3/%d/%02d/'%(satstr,y,m)
-    fpath = glob.glob(dpath+ddir+'*.hdf')[0]
+    if y%4==0: weeks = leapweeks
+    else: weeks = baseweeks
+    w = weeks[m-1]  # week number corresponding to month
+
+    dpath = config['directory_path']['modis-%s'%sat]
+    fpath = glob.glob(dpath+'*%d%s*.hdf'%(y,w))[0]
     f = SD(fpath,SDC.READ)
 
     var = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
