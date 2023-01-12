@@ -89,7 +89,7 @@ def gather_data(var):
     
     
     if var=='aod':
-        obsdata = {'MODIS aqua':readers.read_modis('aqua',max(y0,2002),yf),
+        obsdata = {'MODIS aqua':readers.read_modis('aqua',max(y0,2003),yf),
                    'MISR':readers.read_misr(max(y0,2001),yf),
                    'CALIOP':readers.read_caliop('AllSky','Night','aod',max(y0,2007),yf)}
     
