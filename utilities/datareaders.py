@@ -32,8 +32,8 @@ import yaml
 import calendar
 from datetime import datetime
 
-#from tqdm import tqdm  # if calling from command line or .py
-from tqdm.notebook import tqdm  # if calling from ipynb
+from tqdm import tqdm  # if calling from command line or .py
+#from tqdm.notebook import tqdm  # if calling from ipynb
 
 import warnings
 warnings.filterwarnings(action='ignore',message='invalid value encountered in reduce')
@@ -213,7 +213,16 @@ def read_modis(sat,t0,tf):
     
     t0,tf,years,months = interpret_t0tf(t0,tf)
     
-    dslist = [open_modis_file(sat,y,m) for y in tqdm(years) for m in months]
+    baseweeks = ['001','032','060','091','121','152',
+                 '182','213','244','274','305','335']
+    leapweeks = ['001','032','061','092','122','153',
+                 '183','214','245','275','306','336']
+
+    dslist = []
+    for y in tqdm(years): 
+        weeks = leapweeks if y%4==0 else baseweeks
+        for m,w in zip(months,weeks): dslist.extend([open_modis_file(sat,y,m,w)])
+
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
         
@@ -222,16 +231,7 @@ def read_modis(sat,t0,tf):
     return ds
 
 
-def open_modis_file(sat,y,m):
-
-    baseweeks = ['001','032','060','091','121','152',
-                 '182','213','244','274','305','335']
-    leapweeks = ['001','032','061','092','122','153',
-                 '183','214','245','275','306','336']
-
-    if y%4==0: weeks = leapweeks
-    else: weeks = baseweeks
-    w = weeks[m-1]  # week number corresponding to month
+def open_modis_file(sat,y,m,w):
 
     dpath = config['directory_path']['modis-%s'%sat]
     fpath = glob.glob(dpath+'*%d%s*.hdf'%(y,w))[0]
@@ -261,48 +261,6 @@ def open_modis_file(sat,y,m):
     
     return dsym
     
-
-
-
-
-#-----------------------------------------------------------------------------
-#  Read MIDAS 1x1 degree product
-#-----------------------------------------------------------------------------
-
-def read_midas1x1(t0,tf):
-    
-    print('reading MIDAS DOD at 1x1deg from %s to %s'%(str(t0),str(tf)))
-    print('progress bar = years')
-    
-    dpath = config['directory_path']['midas1x1']
-    fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    dslist = []
-    
-    for y in tqdm(years):
-        for m in months: 
-            
-            flist = glob.glob(dpath+'%d/%s-%d%02d*nc'%(y,fbase,y,m))
-            dsi = xr.open_mfdataset(flist,drop_variables=['Latitude','Longitude']).mean('Time')
-    
-            nc = ncDataset(flist[0])
-            coords = {'Longitude':nc['Longitude'][0,:].data,
-                      'Latitude':nc['Latitude'][:,0].data,
-                      'time':np.datetime64('%d-%02d-15'%(y,m))}
-        
-            dsi = dsi.assign_coords(coords)[['Modis-total-dust-optical-depth-at-550nm']]
-            dsi = dsi.rename({'Latitude':'lat','Longitude':'lon',
-                              'Modis-total-dust-optical-depth-at-550nm':'dod'})
-            dslist.extend([dsi])
-
-    ds = xr.concat(dslist,dim='time')
-    for dsi in dslist: dsi.close()
-    ds = standardize_grid(ds)
-    
-    return ds
-
-
-
 
 
 #-----------------------------------------------------------------------------
@@ -360,7 +318,7 @@ def read_caliop(sky,daynight,var,t0,tf):
     t0,tf,years,months = interpret_t0tf(t0,tf)
     dslist = []
     for y in tqdm(years): 
-        for m in months: 
+        for m in months:
             if (y==2016)&(m==2): dslist.append(caliop_dummy(dslist[-1],y,m,var))
             elif (y==2019)&(m==11)*(sky=='AllSky')*(daynight=='Day'):
                 dslist.append(caliop_dummy(dslist[-1],y,m,var))
