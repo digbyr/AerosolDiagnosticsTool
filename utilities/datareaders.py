@@ -213,15 +213,18 @@ def read_modis(sat,t0,tf):
     
     t0,tf,years,months = interpret_t0tf(t0,tf)
     
-    baseweeks = ['001','032','060','091','121','152',
-                 '182','213','244','274','305','335']
-    leapweeks = ['001','032','061','092','122','153',
-                 '183','214','245','275','306','336']
-
     dslist = []
+    dpath = config['directory_path']['modis-%s'%sat.lower()]
+
     for y in tqdm(years): 
-        weeks = leapweeks if y%4==0 else baseweeks
-        for m,w in zip(months,weeks): dslist.extend([open_modis_file(sat,y,m,w)])
+        fpaths = sorted(glob.glob(dpath+'*M3.A%d*'%y))
+        if len(fpaths)!=12: 
+            print('found %d fpaths for %d'%(len(fpaths),y))
+            print('searched for %s*M3.A%d*'%(dpath,y))
+            print('paths found:\n',fpaths)
+            raise FileNotFoundError
+        for m,fpath in zip(months,fpaths):
+            dslist.extend([open_modis_file(y,m,fpath)])
 
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
@@ -231,12 +234,9 @@ def read_modis(sat,t0,tf):
     return ds
 
 
-def open_modis_file(sat,y,m,w):
+def open_modis_file(y,m,fpath):
 
-    dpath = config['directory_path']['modis-%s'%sat]
-    fpath = glob.glob(dpath+'*%d%s*.hdf'%(y,w))[0]
     f = SD(fpath,SDC.READ)
-
     var = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
     sds_obj = f.select(var)
     vals = sds_obj.get().astype(float)
