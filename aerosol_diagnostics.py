@@ -322,7 +322,7 @@ def plot_maps_comparisons(model1,model2,obs1,obs2,var):
         calc_dims = ('time','run') if 'run' in dsm.dims else 'time'
         dsm = regrid(dsm[var].mean(calc_dims))
         im = ax[i+1,0].pcolormesh(dsm.lon,dsm.lat,dsm,cmap='cividis',
-                                  norm=absnorm,shading='auto')
+                                  norm=absnorm,shading='auto',rasterize=True)
         f.colorbar(im,ax=ax[i+1,0],label=var)
     
         for j,obs in enumerate([obs1,obs2]):
@@ -332,13 +332,13 @@ def plot_maps_comparisons(model1,model2,obs1,obs2,var):
             if i==0: 
                 ax[0,j+1].set_title('%s %s'%(obs,var.upper()))
                 im = ax[0,j+1].pcolormesh(dso.lon,dso.lat,dso,cmap='cividis',
-                                          norm=absnorm,shading='auto')
+                                          norm=absnorm,shading='auto',rasterize=True)
                 f.colorbar(im,ax=ax[0,j+1],label=var)
         
             ax[i+1,j+1].set_title('%s minus %s'%(model,obs))
             dif = dsm - dso
             im = ax[i+1,j+1].pcolormesh(dif.lon,dif.lat,dif,cmap='coolwarm',
-                                        norm=difnorm,shading='auto')
+                                        norm=difnorm,shading='auto',rasterize=True)
             f.colorbar(im,ax=ax[i+1,j+1],label='%s dif'%var)
 
     ax[0,0].axis('off')
