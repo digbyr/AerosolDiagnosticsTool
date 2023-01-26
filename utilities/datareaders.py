@@ -237,7 +237,7 @@ def read_modis(sat,var,t0,tf):
     return ds
 
 
-def open_modis_file(y,m,fpath):
+def open_modis_file(y,m,fpath,var):
 
     if var=='aod':
         longvar = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
