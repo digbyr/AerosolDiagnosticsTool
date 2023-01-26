@@ -170,25 +170,28 @@ def read_singlefile(model,t0,tf):
 #  Read MISR
 #-----------------------------------------------------------------------------
 
-def read_misr(t0,tf):
+def read_misr(var,t0,tf):
     
-    print('reading MISR AOD from %s to %s'%(str(t0),str(tf)))
+    print('reading MISR %s from %s to %s'%(var.upper(),str(t0),str(tf)))
     print('progress bar = years')
     
     dpath = config['directory_path']['misr']
     t0,tf,years,months = interpret_t0tf(t0,tf)
     
+    if var=='aod': longvar = 'Aerosol_Optical_Depth'
+    elif var=='aaod': longvar = 'Absorbing_Optical_Depth'
+    elif var=='ae': longvar = 'Angstrom_Exponent_550_860'
+
     dslist = []
     for y in tqdm(years):
         for m in months: 
             fname = 'MISR_AM1_CGAS_%s_%d_F15_0032.nc'%(calendar.month_abbr[m].upper(),y)
             dsraw = xr.open_dataset(dpath+fname,group='Aerosol_Parameter_Average')
-            vals = dsraw.sel(Band='green_558nm',Optical_Depth_Range='all').Aerosol_Optical_Depth.values
-            dsym = xr.Dataset(data_vars={'aod':(['lat','lon'],vals)},
+            vals = dsraw.sel(Band='green_558nm',Optical_Depth_Range='all')[longvar].values
+            dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
                               coords={'lat':dsraw.Latitude.values,
                                       'lon':dsraw.Longitude.values,
-                                      'time':datetime(y,m,15)},
-                              attrs={'wavelength':'558nm'})
+                                      'time':datetime(y,m,15)})
             dslist.extend([dsym])
             dsraw.close()
 
@@ -206,9 +209,9 @@ def read_misr(t0,tf):
 #  Read MODIS (comes with a dedicated function for opening files)
 #-----------------------------------------------------------------------------
 
-def read_modis(sat,t0,tf):
+def read_modis(sat,var,t0,tf):
     
-    print('reading MODIS-%s AOD from %s to %s'%(sat,str(t0),str(tf)))
+    print('reading MODIS-%s %s from %s to %s'%(sat,var.upper(),str(t0),str(tf)))
     print('progress bar = years')
     
     t0,tf,years,months = interpret_t0tf(t0,tf)
@@ -224,7 +227,7 @@ def read_modis(sat,t0,tf):
             print('paths found:\n',fpaths)
             raise FileNotFoundError
         for m,fpath in zip(months,fpaths):
-            dslist.extend([open_modis_file(y,m,fpath)])
+            dslist.extend([open_modis_file(y,m,fpath,var)])
 
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
@@ -236,9 +239,14 @@ def read_modis(sat,t0,tf):
 
 def open_modis_file(y,m,fpath):
 
+    if var=='aod':
+        longvar = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
+
+    elif var=='ae':
+        longvar = 'Deep_Blue_Angstrom_Exponent_Land_Mean_Mean'
+
     f = SD(fpath,SDC.READ)
-    var = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
-    sds_obj = f.select(var)
+    sds_obj = f.select(longvar)
     vals = sds_obj.get().astype(float)
     
     # restrict to w/in valid range (set outside vals to nan)
@@ -256,7 +264,7 @@ def open_modis_file(y,m,fpath):
     lons = f.select('XDim').get().astype(float)
 
     # make mini ds
-    dsym = xr.Dataset(data_vars={'aod':(['lat','lon'],vals)},
+    dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
                       coords={'lat':lats,'lon':lons,'time':datetime(y,m,15)})
     
     return dsym

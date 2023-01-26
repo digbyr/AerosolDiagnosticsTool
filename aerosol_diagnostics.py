@@ -89,13 +89,21 @@ def gather_data(var):
     
     
     if var=='aod':
-        obsdata = {'MODIS Aqua':readers.read_modis('aqua',max(y0,2003),yf),
-                   'MISR':readers.read_misr(max(y0,2001),yf),
+        obsdata = {'MODIS Aqua':readers.read_modis('Aqua','aod',max(y0,2003),yf),
+                   'MISR':readers.read_misr('aod',max(y0,2001),yf),
                    'CALIOP':readers.read_caliop('AllSky','Night','aod',max(y0,2007),yf)}
     
     elif var=='dod':
         obsdata = {'MIDAS':readers.read_midas(max(y0,2003),min(yf,2017)),
                    'CALIOP':readers.read_caliop('AllSky','Night','dod',max(y0,2007),yf)}
+
+    elif var=='aaod':
+        obsdata = {'MISR':readers.read_misr('aaod',max(y0,2001),yf)}
+
+    elif var=='ae':
+        obsdata = {'MODIS Aqua':readers.read_modis('Aqua','ae',max(y0,2003),yf),
+                   'MISR':readers.read_misr('ae',max(y0,2001),yf)}
+                   
 
     return simdata,obsdata
 
@@ -374,6 +382,10 @@ if 'aod' in variables:
     simAOD,obsAOD = gather_data('aod')
 if 'dod' in variables: 
     simDOD,obsDOD = gather_data('dod')
+if 'aaod' in variables: 
+    simAAOD,obsAAOD = gather_data('aaod')
+if 'ae' in variables: 
+    simAE,obsAE = gather_data('ae')
 
 # -- do plotting --------------------------------------
 
@@ -391,6 +403,8 @@ for var in variables:
 for [model1,model2,var] in comparemaps:
     if var=='aod': obs1,obs2 = 'MODIS Aqua','CALIOP'
     elif var=='dod': obs1,obs2 = 'MIDAS','CALIOP'
+    elif var=='aaod': obs1,obs2 = 'MODIS Aqua','MISR' 
+    elif var=='ae': obs1,obs2 = 'MISR','MISR'
     plot_maps_comparisons(model1,model2,obs1,obs2,var)
 
 pdf_plots.close()
