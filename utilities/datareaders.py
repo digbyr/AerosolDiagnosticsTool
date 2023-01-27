@@ -132,14 +132,17 @@ def read_ensemble(model,expt,var,t0,tf):
     
     try: 
         dslist = [xr.open_dataset(f).sel(time=slice(t0,tf)) for f in tqdm(flist)]
-    except: 
+    except:
         dslist = [standardize_time(xr.open_dataset(f),years,months) for f in tqdm(flist)]
         dslist = [ds.sel(time=slice(t0,tf)) for ds in dslist]
-        
-    runs = np.array([ds.variant_label for ds in dslist])
-    ds = xr.concat(dslist,pd.Index(runs,name='run'))
-    for dsi in dslist: dsi.close()
     
+    if len(flist)>1:
+        runs = np.array([ds.variant_label for ds in dslist])
+        ds = xr.concat(dslist,pd.Index(runs,name='run'))
+        for dsi in dslist: dsi.close()
+    else: 
+        ds = dslist[0]
+
     inv_keys = {v: k for k, v in config['variable_name'].items() if v in list(ds.variables)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
