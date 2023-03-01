@@ -9,27 +9,30 @@
 #######################################################################
 
 import utilities.datareaders as readers
-from singlemodel_seasonalmaps import call_seasonal_maps
-from comparemodels_globalproperties import call_compare_global
+from analysis_scripts.singlemodel_seasonalmaps import call_seasonal_maps
+from analysis_scripts.comparemodels_globalproperties import call_compare_global
 
 import numpy as np
 import xarray as xr
+import yaml
 
 
 #######################################################################
-#  User defined setup
+#  User defined inputs
 #######################################################################
 
-figtag = 'bulkaero'
+config = yaml.safe_load(open('config.yaml'))
 
-ens_models = ['CanESM5-1']
-ens_expts = ['historical']
+figtag = config['figtag']
 
-ind_models = ['CanAM-bulk']*2
-ind_runids = ['v52rc0-amip','bulkaero2-aya']
+ens_models = config['ens_models']
+ens_expts = config['ens_expts']
 
-y0,yf = 2003,2008
-varlist = ['aod','aaod']
+ind_models = config['ind_models']
+ind_runids = config['ind_runids']
+
+y0,yf = config['y0'],config['yf'] 
+varlist = config['varlist']
 
 print()
 
@@ -38,9 +41,9 @@ print()
 #######################################################################
 
 if 'aod' in varlist:
-    obsAOD = {'MODIS Aqua':readers.read_modis('Aqua','aod',y0,yf),
-              'MISR':readers.read_misr('aod',y0,yf),
-              'CALIOP':readers.read_caliop('AllSky','Night','aod',y0,yf)}
+    obsAOD = {#'MODIS Aqua':readers.read_modis('Aqua','aod',y0,yf),
+              'MISR':readers.read_misr('aod',y0,yf),}
+              #'CALIOP':readers.read_caliop('AllSky','Night','aod',y0,yf)}
 
 if 'aaod' in varlist:
     obsAAOD = {'MISR':readers.read_misr('aaod',y0,yf)}
@@ -55,6 +58,7 @@ obsdicts = {var: eval('obs%s'%var.upper()) for var in varlist}
 #######################################################################
 #  Call figures
 #######################################################################
+
 
 for model,runid in zip(ind_models,ind_runids):
     call_seasonal_maps(model,runid,varlist,obsdicts,y0,yf)

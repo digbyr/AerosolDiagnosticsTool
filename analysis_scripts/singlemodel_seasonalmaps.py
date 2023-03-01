@@ -27,8 +27,8 @@ import calendar
 from datetime import datetime
 
 import warnings
-from shapely.errors import ShapelyDeprecationWarning
-warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
+#from shapely.errors import ShapelyDeprecationWarning
+#warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
 warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
 
 
@@ -103,7 +103,8 @@ def call_seasonal_maps(model,runid,varlist,obsdicts,y0,yf):
         plot_maps_comparisons(model,runid,season,y0,yf,varlist,simdata,obsdata,pdf_plots)
 
     print('...cleaning up')
-    for ds in simdata+obsdata: ds.close()
+    for k,ds in simdata.items(): ds.close()
+    for k,ds in obsdata.items(): ds.close()
     pdf_plots.close()
 
     return

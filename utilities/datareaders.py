@@ -43,8 +43,8 @@ try:
     paths = yaml.safe_load(open('datapaths.yaml','r'))
     modelvars = yaml.safe_load(open('modelvars.yaml','r'))
 except FileNotFoundError:
-    paths = yaml.safe_load(open('utilities/datapaths.yaml','r'))
-    modelvars = yaml.safe_load(open('utilities/modelvars.yaml','r'))
+    paths = yaml.safe_load(open('../datapaths.yaml','r'))
+    modelvars = yaml.safe_load(open('../modelvars.yaml','r'))
 
 
 #-------------------------------------------------------------------------

@@ -1,0 +1,18 @@
+##########################################################
+#
+#  USER DEFINED INPUT
+#
+##########################################################
+
+figtag: 'bulkaero'
+
+ens_models: ['CanESM51-p2']
+ens_expts:  ['historical']
+
+ind_models: ['CanAM-bulk','CanAM-bulk']
+ind_runids: ['v52rc0-amip','bulkaero2-aya']
+
+varlist: ['aod','aaod']
+
+y0: 2003
+yf: 2008

@@ -1,0 +1,8 @@
+model_ensembles: '/home/digbyr/PhD/Data/simulations/'
+model_singles:   '/home/digbyr/PhD/Data/simulations/'
+misr:            '/home/digbyr/PhD/Data/observations/MISR/Aerosols/'
+modis-aqua:      '/home/digbyr/PhD/Data/observations/MODIS/MYD08_M3/'
+modis-terra:     '/home/digbyr/PhD/Data/observations/MODIS/MOD08_M3/'
+midas:  '/home/digbyr/PhD/Data/observations/MIDAS/grid_01x01/'
+caliop: '/home/digbyr/PhD/Data/observations/CALIOP/'
+

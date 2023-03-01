@@ -1,8 +1,0 @@
-model_ensembles: '/space/hall5/sitestore/eccc/crd/ccrn/users/rud001/tmp_ensembles/'
-model_singles: '/space/hall5/sitestore/eccc/crd/ccrn/users/rud001/tmp_ensembles/'
-misr:   '/space/hall5/sitestore/eccc/crd/ccrn/obs/slcf/MISR_L3/MISR_L3_V0032/'
-modis-aqua:  '/space/hall5/sitestore/eccc/crd/ccrn/obs/slcf/MODIS/Aqua_V61/'
-modis-terra: '/space/hall5/sitestore/eccc/crd/ccrn/obs/slcf/MODIS/Terra_V61/'
-midas:  ''
-caliop: '/space/hall5/sitestore/eccc/crd/ccrn/obs/slcf/CALIOP/'
-

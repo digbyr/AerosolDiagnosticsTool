@@ -32,10 +32,10 @@ from tqdm import tqdm
 from datetime import datetime
 
 import warnings
-from shapely.errors import ShapelyDeprecationWarning
-warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
+#from shapely.errors import ShapelyDeprecationWarning
+#warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
 warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
-
+warnings.filterwarnings('ignore',message='The handle <matplotlib.lines.Line2D object')
 
 #########################################################################
 #  PLOTS: TIMESERIES
@@ -208,7 +208,7 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
 
     # -- figure setup ------------------------------------------------------
     
-    f = plt.figure(figsize=(7,6))
+    f = plt.figure(figsize=(8,6))
     f.suptitle('%d-%d mean, all maps regridded to 2x2deg'%(y0,yf))
     
     # set up reference (obs) data: time-mean maps, regridded by 2x2
@@ -283,13 +283,11 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
         ax[i].add_grid()
         contours = ax[i].add_contours(levels=5,colors='0.9')
 
-    '''
     # one legend for whole fig, using ax[0] (usually AOD) - most obs    
     f.legend(ax[0].samplePoints,[p.get_label() for p in ax[0].samplePoints],
-             numpoints=1,loc='upper left',bbox_to_anchor=(0.95,1),
-             bbox_transform=ax[-1]._ax.transAxes)
-    plt.subplots_adjust(right=0.7)
-    '''
+             numpoints=1,loc='upper left',bbox_to_anchor=(0.05,1.4),
+             bbox_transform=ax[0]._ax.transAxes,ncol=3)
+    plt.subplots_adjust(hspace=0.3,wspace=0.3)
     plt.savefig(pdf_plots,format='pdf')
 
     return
@@ -300,11 +298,7 @@ def plot_taylor_point(dat,ref,ax,c,mk,label,ptype):
     # calculate Pearson correlation coefficient (ie how tight is scatter)
     msk = np.isfinite(dat)*np.isfinite(ref)
     std = np.nanstd(dat)
-    try: 
-        cor = stats.pearsonr(ref[msk],dat[msk])[0]
-    except: 
-        print(label,np.shape(dat),np.shape(ref))
-        cor = stats.pearsonr(ref[msk],dat[msk])[0]
+    cor = stats.pearsonr(ref[msk],dat[msk])[0]
 
     # ptype (point type) = major or minor
     # major is used for ensemble medians and single-realization products (eg obs)
@@ -349,7 +343,6 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
     mkdict_obs = {sat:'s' for sat in sats}
     mkdict = {**mkdict_sim,**mkdict_obs}
 
-    
     print('...plotting')
     for var in varlist:
 
@@ -364,7 +357,6 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
                         ind_models,ind_runids,
                         obsdicts[var],y0,yf,
                         cdict,lsdict,pdf_plots)
-    
     
     print('......multi-var taylor diagram')
     plot_taylor_diagram(varlist,ens_models,ens_expts,
