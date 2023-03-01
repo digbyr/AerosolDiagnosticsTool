@@ -1,8 +1,13 @@
 # Aerosol Diagnostics Tool
 
-**The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD) and absorbing (AAOD) optical depth, and angstron exponent (AE), analyses are currently supported.** 
+**The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD) and absorbing (AAOD) optical depth, and angstrom exponent (AE), analyses are currently supported.** 
 
-The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts. 
+The default output contains: 
+  
+  * Timeseries, zonal means, and taylor diagrams for each variable of interest, comparing the selected models against each other and against observations.
+  * For specified models, spatial maps showing the distribution of each variable in the model, in MISR, and the difference between the two.
+
+The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts.  
 
   * The **main coordinating script** is *aerosol_diagnostics.py*. This script reads in user-specified parameters from config.yaml and outputs aerosol diagnostic figures in a series of multi-page pdfs. The wiki includes sample output pdfs for reference. It should run without specific user input, but you can edit the calls to the analysis scrips if you would like to modify what is being plotted.
   
