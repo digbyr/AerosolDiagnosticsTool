@@ -36,19 +36,21 @@ warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
 #  MAIN FIGURE
 #########################################################################
 
-def plot_maps_comparisons(model,runid,season,y0,yf,varlist,simdata,obsdata,pdf_plots):
+def plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata,pdf_plots):
 
     # -- figure setup ---------------------------------------------------
 
     f,ax = plt.subplots(len(varlist),3,figsize=(12,2*len(varlist)),
                         subplot_kw={'projection':ccrs.PlateCarree()})
-    title = '%s %s aerosol properties, %s %d-%d mean'%(model,runid,season,y0,yf)
+    ensnote = ' (1st realization)' if simtype=='ens' else ''
+    title = '%s %s%s aerosol properties, %s %d-%d mean'%(model,tag,ensnote,season,y0,yf)
     f.suptitle(title+'\n(all maps regridded to 2x2deg)')
 
     # -- subplot labels ---------------------------------------------------
 
+    simlabel = model if simtype=='ens' else tag
     for i,var in enumerate(varlist):
-        for j,src in enumerate([runid,'MISR','%s - MISR'%runid]):
+        for j,src in enumerate([simlabel,'MISR','%s - MISR'%simlabel]):
             ax[i,j].set_title('%s %s'%(src,var.upper()))
 
     # -- colormap normalization -------------------------------------------
@@ -86,21 +88,28 @@ def plot_maps_comparisons(model,runid,season,y0,yf,varlist,simdata,obsdata,pdf_p
 #  MAIN CALLS
 #########################################################################
 
-def call_seasonal_maps(model,runid,varlist,obsdicts,y0,yf):
+def call_seasonal_maps(model,tag,simtype,varlist,obsdicts,y0,yf):
 
-    print('\nseasonal maps for %s %s'%(model,runid))
-    pdf_plots = PdfPages('plots/seasonalmaps_%s.pdf'%runid)
+    print('\nseasonal maps for %s %s'%(model,tag))
+    simlabel = model if simtype=='ens' else tag
+    pdf_plots = PdfPages('plots/seasonalmaps_%s.pdf'%simlabel)
 
     print('...reading+regridding model data')
-    simdata = {var: regrid(readers.read_model_singlerlzn(model,runid,var,y0,yf),res=2)
-               for var in varlist}
+    if simtype=='ens':
+        tmpdata = [readers.read_model_ensemble(model,tag,var,y0,yf) for var in varlist]
+        run = tmpdata[0].run.values[0]
+        simdata = {var: regrid(tmp.sel(run=run).squeeze(),res=2) for var,tmp in zip(varlist,tmpdata)}
+        for tmp in tmpdata: tmp.close()
+    elif simtype=='ind':
+        simdata = {var: regrid(readers.read_model_singlerlzn(model,tag,var,y0,yf),res=2)
+                   for var in varlist}
 
     print('...regridding obs data')
     obsdata = {var: regrid(obsdicts[var]['MISR'],res=2) for var in varlist}
         
     print('...plotting')
     for season in ['DJF','MAM','JJA','SON']:
-        plot_maps_comparisons(model,runid,season,y0,yf,varlist,simdata,obsdata,pdf_plots)
+        plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata,pdf_plots)
 
     print('...cleaning up')
     for k,ds in simdata.items(): ds.close()

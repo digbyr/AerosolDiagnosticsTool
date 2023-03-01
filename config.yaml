@@ -5,6 +5,10 @@
 ##########################################################
 
 figtag: 'bulkaero'
+varlist: ['aod','aaod']
+
+y0: 2003
+yf: 2008
 
 ens_models: ['CanESM51-p2']
 ens_expts:  ['historical']
@@ -12,7 +16,6 @@ ens_expts:  ['historical']
 ind_models: ['CanAM-bulk','CanAM-bulk']
 ind_runids: ['v52rc0-amip','bulkaero2-aya']
 
-varlist: ['aod','aaod']
+models_to_map: ['CanAM-bulk']
+modeltags_to_map: ['bulkaero2-aya']
 
-y0: 2003
-yf: 2008
