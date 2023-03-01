@@ -1,4 +1,4 @@
-###########################################################################
+########################################################################### 
 #
 #  DATA READER
 #  Co-developed by Ruth Digby and Yi Ren
@@ -37,8 +37,14 @@ from tqdm import tqdm  # if calling from command line or .py
 
 import warnings
 warnings.filterwarnings(action='ignore',message='invalid value encountered in reduce')
+warnings.filterwarnings(action='ignore',message='Converting a CFTimeIndex with dates from a non-standard calendar')
 
-config = yaml.safe_load(open('config_dirs_vars.yaml','r'))
+try:
+    paths = yaml.safe_load(open('datapaths.yaml','r'))
+    modelvars = yaml.safe_load(open('modelvars.yaml','r'))
+except FileNotFoundError:
+    paths = yaml.safe_load(open('utilities/datapaths.yaml','r'))
+    modelvars = yaml.safe_load(open('utilities/modelvars.yaml','r'))
 
 
 #-------------------------------------------------------------------------
@@ -88,10 +94,14 @@ def standardize_grid(ds):
 #  Standardize time coordinate: make into datetime if not
 #-------------------------------------------------------------------------
 
-def standardize_time(ds,years,months):
+def standardize_calendar(ds,years,months):
     
     # get a reference time value to assess
     d0 = ds.time.values[0]
+        
+    # want everything to be np.datetime64
+    if type(d0)==np.datetime64:
+        return ds
     
     # some models: time coord is just months (arbitrarily assign to y=yf)
     if np.array_equal(ds.time.values,months): 
@@ -105,7 +115,11 @@ def standardize_time(ds,years,months):
             newtime = np.array([datetime(int(dstr[0:4]),int(dstr[4:6]),15) for dstr in dstrs])
             ds = ds.assign_coords({'time':newtime})
 
-    # space to add more exceptions if needed
+    # otherwise it's probably some other datetime-esque format
+    ds['time'] = ds.indexes['time'].to_datetimeindex()
+    newtime = np.array([datetime(t.dt.year,t.dt.month,16,0) for t in ds.time])
+    ds = ds.assign_coords({'time':newtime.astype('datetime64[ns]')})
+    
     return ds
 
    
@@ -113,34 +127,32 @@ def standardize_time(ds,years,months):
 #  Read Model Ensemble Data (assuming dir structure /model/experiment/var/)
 #-----------------------------------------------------------------------------
 
-def read_ensemble(model,expt,var,t0,tf):
+def read_model_ensemble(model,expt,var,t0,tf):
 
-    print('reading %s-%s %s from %s to %s'%(model,expt,var,str(t0),str(tf)))
-    print('progress bar = ensemble')
-    
     try: 
-        dpath = config['directory_path']['models']+'%s/%s/%s/'%(model,expt,var)
+        dpath = paths['model_ensembles']+'%s/%s/%s/'%(model,expt,var)
         if not os.path.isdir(dpath): raise FileNotFoundError()
     except FileNotFoundError:
-        localvar = config['variable_name'][var]
-        dpath = config['directory_path']['models']+'%s/%s/%s/'%(model,expt,localvar)
+        localvar = modelvars[var]
+        dpath = paths['model_ensembles']+'%s/%s/%s/'%(model,expt,localvar)
         if not os.path.isdir(dpath): 
             raise FileNotFoundError('path not found; tried %s and /%s/'%(dpath,var))
         
     flist = glob.glob(dpath+'*nc')
     t0,tf,years,months = interpret_t0tf(t0,tf)
     
-    try: 
-        dslist = [xr.open_dataset(f).sel(time=slice(t0,tf)) for f in tqdm(flist)]
-    except: 
-        dslist = [standardize_time(xr.open_dataset(f),years,months) for f in tqdm(flist)]
-        dslist = [ds.sel(time=slice(t0,tf)) for ds in dslist]
+    dslist = [standardize_calendar(xr.open_dataset(f),years,months) for f in flist]
         
     runs = np.array([ds.variant_label for ds in dslist])
-    ds = xr.concat(dslist,pd.Index(runs,name='run'))
+    if len(np.unique(runs))!=len(runs):
+        dslist = [xr.concat([dsi for ri,dsi in zip(runs,dslist) if ri==run],'time')
+                  for run in np.unique(runs)]
+                               
+    ds = xr.concat(dslist,pd.Index(np.unique(runs),name='run'))
     for dsi in dslist: dsi.close()
-    
-    inv_keys = {v: k for k, v in config['variable_name'].items() if v in list(ds.variables)}
+    ds = ds.sel(time=slice(t0,tf))
+                
+    inv_keys = {v: k for k, v in modelvars.items() if v in list(ds.variables)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
 
@@ -148,18 +160,21 @@ def read_ensemble(model,expt,var,t0,tf):
 
 
 #-----------------------------------------------------------------------------
-#  Read Single Model File (path specified in config file)
+#  Read Model Data - Single Rlzn  (assuming dir structure /model/runid/<all files>)
 #-----------------------------------------------------------------------------
 
-def read_singlefile(model,t0,tf):
+def read_model_singlerlzn(model,runid,var,t0,tf):
     
-    dpath = config['single_files'][model]
-    ds = xr.open_dataset(dpath)
-    
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    ds = standardize_time(ds,years,months).sel(time=slice(t0,tf))
+    dpath = paths['model_singles']+'%s/%s/'%(model,runid)
+    try: 
+        ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%var))
+    except:
+        ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%modelvars[var]))
+        ds = ds.rename({modelvars[var]:var})
 
-    inv_keys = {v: k for k, v in config['variable_name'].items() if v in list(ds.variables)}
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+    ds = standardize_calendar(ds,years,months).sel(time=slice(t0,tf))
+    inv_keys = {v: k for k, v in modelvars.items() if v in list(ds.variables)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
     
@@ -170,25 +185,28 @@ def read_singlefile(model,t0,tf):
 #  Read MISR
 #-----------------------------------------------------------------------------
 
-def read_misr(t0,tf):
+def read_misr(var,t0,tf):
     
-    print('reading MISR AOD from %s to %s'%(str(t0),str(tf)))
-    print('progress bar = years')
-    
-    dpath = config['directory_path']['misr']
+    print('reading misr %s'%var)
+
+    dpath = paths['misr']
     t0,tf,years,months = interpret_t0tf(t0,tf)
+    if years[0]<2001: years = np.arange(2001,years[1]+1)
     
+    if var=='aod': longvar = 'Aerosol_Optical_Depth'
+    elif var=='aaod': longvar = 'Absorbing_Optical_Depth'
+    elif var=='ae': longvar = 'Angstrom_Exponent_550_860'
+
     dslist = []
-    for y in tqdm(years):
+    for y in years:
         for m in months: 
             fname = 'MISR_AM1_CGAS_%s_%d_F15_0032.nc'%(calendar.month_abbr[m].upper(),y)
             dsraw = xr.open_dataset(dpath+fname,group='Aerosol_Parameter_Average')
-            vals = dsraw.sel(Band='green_558nm',Optical_Depth_Range='all').Aerosol_Optical_Depth.values
-            dsym = xr.Dataset(data_vars={'aod':(['lat','lon'],vals)},
+            vals = dsraw.sel(Band='green_558nm',Optical_Depth_Range='all')[longvar].values
+            dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
                               coords={'lat':dsraw.Latitude.values,
                                       'lon':dsraw.Longitude.values,
-                                      'time':datetime(y,m,15)},
-                              attrs={'wavelength':'558nm'})
+                                      'time':datetime(y,m,15)})
             dslist.extend([dsym])
             dsraw.close()
 
@@ -206,25 +224,26 @@ def read_misr(t0,tf):
 #  Read MODIS (comes with a dedicated function for opening files)
 #-----------------------------------------------------------------------------
 
-def read_modis(sat,t0,tf):
+
+def read_modis(sat,var,t0,tf):
     
-    print('reading MODIS-%s AOD from %s to %s'%(sat,str(t0),str(tf)))
-    print('progress bar = years')
+    print('reading MODIS-%s %s from %s to %s'%(sat,var.upper(),str(t0),str(tf)))
     
     t0,tf,years,months = interpret_t0tf(t0,tf)
-    
-    dslist = []
-    dpath = config['directory_path']['modis-%s'%sat.lower()]
+    if years[0]<2003: years = np.arange(2003,years[1]+1)
 
-    for y in tqdm(years): 
+    dslist = []
+    dpath = paths['modis-%s'%sat.lower()]
+    
+    for y in years:
         fpaths = sorted(glob.glob(dpath+'*M3.A%d*'%y))
         if len(fpaths)!=12: 
             print('found %d fpaths for %d'%(len(fpaths),y))
-            print('searched for %s*M3.A%d*'%(dpath,y))
-            print('paths found:\n',fpaths)
+            print('searching for %s*M3.A%d*'%(dpath,y))
+            print('paths found:',fpaths)
             raise FileNotFoundError
-        for m,fpath in zip(months,fpaths):
-            dslist.extend([open_modis_file(y,m,fpath)])
+        for m,fpath in zip(months,fpaths): 
+            dslist.extend([open_modis_file(y,m,fpath,var)])
 
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
@@ -234,11 +253,16 @@ def read_modis(sat,t0,tf):
     return ds
 
 
-def open_modis_file(y,m,fpath):
+def open_modis_file(y,m,fpath,var):
+
+    if var=='aod':
+        longvar = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
+
+    elif var=='ae':
+        longvar = 'Deep_Blue_Angstrom_Exponent_Land_Mean_Mean'
 
     f = SD(fpath,SDC.READ)
-    var = 'AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean'
-    sds_obj = f.select(var)
+    sds_obj = f.select(longvar)
     vals = sds_obj.get().astype(float)
     
     # restrict to w/in valid range (set outside vals to nan)
@@ -256,28 +280,64 @@ def open_modis_file(y,m,fpath):
     lons = f.select('XDim').get().astype(float)
 
     # make mini ds
-    dsym = xr.Dataset(data_vars={'aod':(['lat','lon'],vals)},
+    dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
                       coords={'lat':lats,'lon':lons,'time':datetime(y,m,15)})
     
     return dsym
     
 
 
+
+
+#-----------------------------------------------------------------------------
+#  Read MIDAS 1x1 degree product
+#-----------------------------------------------------------------------------
+
+def read_midas1x1(t0,tf):
+    
+    dpath = paths['midas1x1']
+    fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+    dslist = []
+    
+    for y in years:
+        for m in months: 
+            
+            flist = glob.glob(dpath+'%d/%s-%d%02d*nc'%(y,fbase,y,m))
+            dsi = xr.open_mfdataset(flist,drop_variables=['Latitude','Longitude']).mean('Time')
+    
+            nc = ncDataset(flist[0])
+            coords = {'Longitude':nc['Longitude'][0,:].data,
+                      'Latitude':nc['Latitude'][:,0].data,
+                      'time':np.datetime64('%d-%02d-15'%(y,m))}
+        
+            dsi = dsi.assign_coords(coords)[['Modis-total-dust-optical-depth-at-550nm']]
+            dsi = dsi.rename({'Latitude':'lat','Longitude':'lon',
+                              'Modis-total-dust-optical-depth-at-550nm':'dod'})
+            dslist.extend([dsi])
+
+    ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
+    for dsi in dslist: dsi.close()
+    ds = standardize_grid(ds)
+    
+    return ds
+
+
+
+
+
 #-----------------------------------------------------------------------------
 #  Read MIDAS 0.1x0.1 degree product
 #-----------------------------------------------------------------------------
 
-def read_midas(t0,tf):
+def read_midas01x01(t0,tf):
     
-    print('reading MIDAS DOD at 0.1x0.1deg from %s to %s'%(str(t0),str(tf)))
-    print('progress bar = years')
-    
-    dpath = config['directory_path']['midas01x01']
+    dpath = paths['midas01x01']
     fbase = 'MODIS-AQUA-C061_AOD-and-DOD-V1-GRID_RESOLUTION_0.1-'
     t0,tf,years,months = interpret_t0tf(t0,tf)
 
     dslist = []
-    for y in tqdm(years):
+    for y in years:
 
         ddir = dpath+'%d/GRID_RESOLUTION_0.1/'%y
         for m in months: 
@@ -297,7 +357,7 @@ def read_midas(t0,tf):
 
     ds = xr.concat(dslist,dim='time')
     for dsi in dslist: dsi.close()
-    if '-' in t0: ds = ds.sel(time=slice(t0,tf))
+    ds = ds.sel(time=slice(t0,tf))
     ds = standardize_grid(ds)
         
     return ds
@@ -312,16 +372,22 @@ def read_midas(t0,tf):
 
 def read_caliop(sky,daynight,var,t0,tf):
     
-    print('reading CALIOP-%s-%s %s from %s to %s'%(sky,daynight,var,str(t0),str(tf)))
-    print('progress bar = years')
-    
+    print('reading caliop %s %s %s'%(sky,daynight,var))
+
     t0,tf,years,months = interpret_t0tf(t0,tf)
+    if years[0]<2007: years = np.arange(2007,years[-1]+1)
     dslist = []
-    for y in tqdm(years): 
-        for m in months:
-            if (y==2016)&(m==2): dslist.append(caliop_dummy(dslist[-1],y,m,var))
+    
+    if len(tf)==7: maxmonth = int(tf[5:])
+    elif years[-1]==2020: maxmonth = 7 # latest data avail
+    else: maxmonth = 12
+
+    for y in years: 
+        for m in months: 
+            if (y==2016)&(m==2):  dslist.append(caliop_dummy(dslist[-1],y,m,var))
             elif (y==2019)&(m==11)*(sky=='AllSky')*(daynight=='Day'):
                 dslist.append(caliop_dummy(dslist[-1],y,m,var))
+            elif (y==years[-1])&(m>=maxmonth): break
             else: dslist.append(open_caliop_file(sky,daynight,var,y,m))
                 
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
@@ -334,7 +400,7 @@ def read_caliop(sky,daynight,var,t0,tf):
 
 def open_caliop_file(sky,daynight,var,y,m):
     
-    dpath = config['directory_path']['caliop']+'Aerosol_Tropos_%s_%s/'%(sky,daynight)
+    dpath = paths['caliop']+'Aerosol_Tropos_%s_%s/'%(sky,daynight)
     prefix = 'CAL_LID_L3_Tropospheric_APro'
     fname = prefix+'_%s-Standard-V4-20.%d-%02d%s.hdf'%(sky,y,m,daynight[0])
 
@@ -343,7 +409,7 @@ def open_caliop_file(sky,daynight,var,y,m):
     try: 
         f = SD(dpath + fname, SDC.READ)
     except: 
-        print('no file found for %d %02d'%(y,m))
+        print('\nno file found for %d %02d'%(y,m))
         f = SD(dpath + fname, SDC.READ)
         
     vals = f.select(longvar).get().astype(float)
@@ -378,26 +444,44 @@ def caliop_dummy(ref,y,m,var):
 
 def read_voss(t0,tf):
     
-    print('reading Voss DOD from %s to %s'%(str(t0),str(tf)))
+    t0,tf,years,months = interpret_t0tf(t0,tf)
     
-    dpath = config['directory_path']['voss']
+    dpath = paths['voss']
     ds = xr.open_dataset(dpath+'Voss2020_DAOD_monthly_MODIS.nc')
     newtime = np.array([np.datetime64(datetime.fromordinal(datenum).strftime('%Y-%m-%d')) 
                         for datenum in ds.time.values.astype(int)])
     ds = ds.assign_coords({'time':newtime}).rename({'daod':'dod'})
-    ds = ds.sel(time=slice(str(t0),str(tf)))
+    ds = ds.sel(time=slice(t0,tf))
     ds = standardize_grid(ds)
     
     return ds
 
 
 
+###################################################################################
+#  ACROS CALIPSO (not doing ACROS MODIS because it doesn't include 2020)
+###################################################################################
 
+def read_acros(var,t0,tf):
+    
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+    
+    dpath = paths['acros']
+    fcal1 = 'GlobalClearSkyMeanDustClimatology_CALIOP20072019Monthly.nc'
+    fcal2 = 'GlobalClearSkyMeanDustClimatology_CALIOP2020Monthly.nc'
+    
+    rawds = xr.open_mfdataset([dpath+fcal1,dpath+fcal2])
+    rawds = rawds.rename({'clr_hlc_aeraod':'aod','clr_hlc_dustaod':'dod'})
 
+    time = [datetime(y,m,16) for y in rawds['year'] for m in rawds['month']]
+    datlist = [rawds.sel(year=y,month=m)[var].values 
+               for y in rawds['year'] for m in rawds['month']]
 
+    ds = xr.Dataset(data_vars={var:(['time','lat','lon'],np.array(datlist))},
+                    coords={'time':time,'lat':rawds.lat,'lon':rawds.lon})
+    ds = standardize_grid(ds).sel(time=slice(t0,tf))
+    
+    return ds
 
-
-
-
-
+    
 

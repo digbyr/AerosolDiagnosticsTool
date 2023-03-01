@@ -41,8 +41,10 @@ with open('config_setup.yaml','r') as f:
 
     # get model names
     ensembles = config['models']['ensembles']
+    expts = config['models']['experiments']
+    ensexpts = ['%s-%s'%(ens,expt) for ens in ensembles for expt in expts]
     singleruns = config['models']['singleruns']
-    models = ensembles + singleruns
+    models = ensexpts + singleruns
 
     # get years over which to plot
     years = np.arange(config['setup']['year_start'],
@@ -76,12 +78,13 @@ def gather_data(var):
         config = yaml.safe_load(f)
         y0 = config['setup']['year_start']
         yf = config['setup']['year_end']
-        expt = config['models']['experiment']
+        expts = config['models']['experiments']
     
     simdata = {}
     
     for model in ensembles:
-        simdata[model] = readers.read_ensemble(model,expt,var=var,t0=y0,tf=yf)
+        for expt in expts:
+            simdata[model+'-'+expt] = readers.read_ensemble(model,expt,var=var,t0=y0,tf=yf)
         
     for model in singleruns: 
         ds = readers.read_singlefile(model,t0=y0,tf=yf)
@@ -89,13 +92,21 @@ def gather_data(var):
     
     
     if var=='aod':
-        obsdata = {'MODIS Aqua':readers.read_modis('aqua',max(y0,2003),yf),
-                   'MISR':readers.read_misr(max(y0,2001),yf),
+        obsdata = {'MODIS Aqua':readers.read_modis('Aqua','aod',max(y0,2003),yf),
+                   'MISR':readers.read_misr('aod',max(y0,2001),yf),
                    'CALIOP':readers.read_caliop('AllSky','Night','aod',max(y0,2007),yf)}
     
     elif var=='dod':
         obsdata = {'MIDAS':readers.read_midas(max(y0,2003),min(yf,2017)),
                    'CALIOP':readers.read_caliop('AllSky','Night','dod',max(y0,2007),yf)}
+
+    elif var=='aaod':
+        obsdata = {'MISR':readers.read_misr('aaod',max(y0,2001),yf)}
+
+    elif var=='ae':
+        obsdata = {'MODIS Aqua':readers.read_modis('Aqua','ae',max(y0,2003),yf),
+                   'MISR':readers.read_misr('ae',max(y0,2001),yf)}
+                   
 
     return simdata,obsdata
 
@@ -120,10 +131,10 @@ def plot_timeseries_seasons_combined(var):
     # -- plot sim data ------------------------------------------------------------
     
     for model in simdata.keys():
-                
+        
         ds = simdata[model][var]
         if 'run' in ds.dims: ds = ds.chunk(dict(run=-1))
-            
+
         ts = ds.weighted(np.cos(np.deg2rad(ds.lat))).mean(('lat','lon'))   
         ts_season = ts.groupby(ts.time.dt.month).mean('time')
         time = [np.datetime64(t) for t in ts.time.values]
@@ -177,7 +188,7 @@ def plot_timeseries_seasons_combined(var):
     ax[1].legend(loc='upper left',bbox_to_anchor=(1.01,1),
                  bbox_transform=ax[1].transAxes)
         
-    plt.subplots_adjust(wspace=0.05)
+    plt.subplots_adjust(left=0.05,right=0.85,wspace=0.05)
     
     plt.savefig(pdf_plots,format='pdf')
     
@@ -231,7 +242,7 @@ def plot_zonal_mean(var):
 def plot_taylor_fig(var):
     
     f = plt.figure(figsize=(7,6))
-    f.suptitle('%d-%d mean %s, all maps regridded to 2x2deg'%(years[0],years[-1],var))
+    f.suptitle('%d-%d mean %s, all maps regridded to 2x2deg'%(years[0],years[-1],var.upper()))
     
     # set up data: time-mean maps, regridded by 2x2 to save computation time
     simdata = {k:regrid(ds[var].mean('time'),res=2) 
@@ -264,7 +275,7 @@ def plot_taylor_fig(var):
     ax.add_grid()
     contours = ax.add_contours(levels=5,colors='0.9')
     f.legend(ax.samplePoints, [p.get_label() for p in ax.samplePoints],
-             numpoints=1,loc='upper left',bbox_to_anchor=(1,1),
+             numpoints=1,loc='upper left',bbox_to_anchor=(0.95,1),
              bbox_transform=ax._ax.transAxes)
     plt.subplots_adjust(right=0.7)
     
@@ -322,7 +333,7 @@ def plot_maps_comparisons(model1,model2,obs1,obs2,var):
         calc_dims = ('time','run') if 'run' in dsm.dims else 'time'
         dsm = regrid(dsm[var].mean(calc_dims))
         im = ax[i+1,0].pcolormesh(dsm.lon,dsm.lat,dsm,cmap='cividis',
-                                  norm=absnorm,shading='auto',rasterize=True)
+                                  norm=absnorm,shading='auto',rasterized=True)
         f.colorbar(im,ax=ax[i+1,0],label=var)
     
         for j,obs in enumerate([obs1,obs2]):
@@ -332,13 +343,13 @@ def plot_maps_comparisons(model1,model2,obs1,obs2,var):
             if i==0: 
                 ax[0,j+1].set_title('%s %s'%(obs,var.upper()))
                 im = ax[0,j+1].pcolormesh(dso.lon,dso.lat,dso,cmap='cividis',
-                                          norm=absnorm,shading='auto',rasterize=True)
+                                          norm=absnorm,shading='auto',rasterized=True)
                 f.colorbar(im,ax=ax[0,j+1],label=var)
         
             ax[i+1,j+1].set_title('%s minus %s'%(model,obs))
             dif = dsm - dso
             im = ax[i+1,j+1].pcolormesh(dif.lon,dif.lat,dif,cmap='coolwarm',
-                                        norm=difnorm,shading='auto',rasterize=True)
+                                        norm=difnorm,shading='auto',rasterized=True)
             f.colorbar(im,ax=ax[i+1,j+1],label='%s dif'%var)
 
     ax[0,0].axis('off')
@@ -374,6 +385,10 @@ if 'aod' in variables:
     simAOD,obsAOD = gather_data('aod')
 if 'dod' in variables: 
     simDOD,obsDOD = gather_data('dod')
+if 'aaod' in variables: 
+    simAAOD,obsAAOD = gather_data('aaod')
+if 'ae' in variables: 
+    simAE,obsAE = gather_data('ae')
 
 # -- do plotting --------------------------------------
 
@@ -391,6 +406,8 @@ for var in variables:
 for [model1,model2,var] in comparemaps:
     if var=='aod': obs1,obs2 = 'MODIS Aqua','CALIOP'
     elif var=='dod': obs1,obs2 = 'MIDAS','CALIOP'
+    elif var=='aaod': obs1,obs2 = 'MODIS Aqua','MISR' 
+    elif var=='ae': obs1,obs2 = 'MISR','MISR'
     plot_maps_comparisons(model1,model2,obs1,obs2,var)
 
 pdf_plots.close()
