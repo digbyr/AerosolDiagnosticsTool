@@ -11,7 +11,7 @@ The Aerosol Diagnostics Tool consists of a main coordinating script which calls 
       * *datapaths.yaml* specifies the paths to the different datasets.
       * *modelvars.yaml* specifies the variable names used in the simulated datasets.
   
-  * The *analysis scripts* do the actual processing and plotting of the data. They are called from *aerosol_diagnostics.py* and should run without user input.
+  * The **analysis scripts** do the actual processing and plotting of the data. They are called from *aerosol_diagnostics.py* and should run without user input.
   
   * The **utility scripts** are mainly responsible for reading and processes observed and simulated optical depth fields for use in the analysis script. They should run without any user input, although *datareaders.py* does make certain assumptions about directory structure. These assumptions are outlined in the wiki. One utility script, *taylorDiagram.py*, is used for plotting. It was developed by Yannick Copin, and all rights belong to him. The original can be found at https://gist.github.com/ycopin/3342888. 
   
