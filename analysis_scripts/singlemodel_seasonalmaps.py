@@ -27,8 +27,8 @@ import calendar
 from datetime import datetime
 
 import warnings
-#from shapely.errors import ShapelyDeprecationWarning
-#warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
+from shapely.errors import ShapelyDeprecationWarning
+warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
 warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
 
 
@@ -50,13 +50,15 @@ def plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata
 
     simlabel = model if simtype=='ens' else tag
     for i,var in enumerate(varlist):
-        for j,src in enumerate([simlabel,'MISR','%s - MISR'%simlabel]):
+        sat = 'ACROS' if var=='dod' else 'MISR'
+        for j,src in enumerate([simlabel,sat,'%s - %s'%(simlabel,sat)]):
             ax[i,j].set_title('%s %s'%(src,var.upper()))
 
     # -- colormap normalization -------------------------------------------
 
-    cmaps = {'aod':'cividis', 'aaod':'afmhot_r', 'ae':'BuPu', 'dif':'coolwarm'}
-    vmaxs = {'aod':0.5, 'aaod':0.1, 'ae':2}
+    cmaps = {'aod':'cividis', 'aaod':'afmhot_r', 'dod':'hot_r',
+             'ae':'BuPu', 'dif':'coolwarm'}
+    vmaxs = {'aod':0.5, 'aaod':0.1, 'dod':0.5, 'ae':2}
 
     # -- plot maps -------------------------------------------------------
 
@@ -76,7 +78,7 @@ def plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata
 
         for j,im in enumerate([im0,im1,im2]):
             ax[i,j].coastlines()
-            f.colorbar(im,ax=ax[i,j])
+            f.colorbar(im,ax=ax[i,j],shrink=0.9)
 
     plt.savefig(pdf_plots,format='pdf')
 
@@ -105,8 +107,9 @@ def call_seasonal_maps(model,tag,simtype,varlist,obsdicts,y0,yf):
                    for var in varlist}
 
     print('...regridding obs data')
-    obsdata = {var: regrid(obsdicts[var]['MISR'],res=2) for var in varlist}
-        
+    obsdata = {var: regrid(obsdicts[var]['MISR'],res=2) for var in varlist if var!='dod'}
+    if 'dod' in varlist: obsdata['dod'] = regrid(obsdicts['dod']['ACROS'],res=2)
+
     print('...plotting')
     for season in ['DJF','MAM','JJA','SON']:
         plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata,pdf_plots)

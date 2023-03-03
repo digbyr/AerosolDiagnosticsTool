@@ -295,6 +295,8 @@ def open_modis_file(y,m,fpath,var):
 
 def read_midas1x1(t0,tf):
     
+    print('reading midas dod at 1x1deg')
+
     dpath = paths['midas1x1']
     fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
     t0,tf,years,months = interpret_t0tf(t0,tf)
@@ -331,6 +333,8 @@ def read_midas1x1(t0,tf):
 #-----------------------------------------------------------------------------
 
 def read_midas01x01(t0,tf):
+    
+    print('reading midas dod at 0.1x0.1deg')
     
     dpath = paths['midas01x01']
     fbase = 'MODIS-AQUA-C061_AOD-and-DOD-V1-GRID_RESOLUTION_0.1-'

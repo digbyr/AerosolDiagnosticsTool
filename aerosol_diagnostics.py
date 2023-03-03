@@ -43,24 +43,28 @@ print()
 #######################################################################
 
 if 'aod' in varlist:
-    obsAOD = {#'MODIS Aqua':readers.read_modis('Aqua','aod',y0,yf),
-              'MISR':readers.read_misr('aod',y0,yf),}
-              #'CALIOP':readers.read_caliop('AllSky','Night','aod',y0,yf)}
+    obsAOD = {'MODIS Aqua':readers.read_modis('Aqua','aod',y0,yf),
+              'MISR':readers.read_misr('aod',y0,yf),
+              'CALIOP':readers.read_caliop('AllSky','Night','aod',y0,yf)}
 
 if 'aaod' in varlist:
     obsAAOD = {'MISR':readers.read_misr('aaod',y0,yf)}
+
+if 'dod' in varlist:
+    obsDOD = {'ACROS':readers.read_acros('dod',y0,yf),
+              'MIDAS':readers.read_midas01x01(y0,yf)}
 
 if 'ae' in varlist:
     obsAE = {'MODIS Aqua':readers.read_modis('Aqua','ae',y0,yf),
              'MISR':readers.read_misr('ae',y0,yf)}
              
+
 obsdicts = {var: eval('obs%s'%var.upper()) for var in varlist}
 
 
 #######################################################################
 #  Call figures
 #######################################################################
-
 
 for model,tag in zip(models_to_map,modeltags_to_map):
     if (model in ens_models)*(tag in ens_expts): simtype='ens'
@@ -69,7 +73,6 @@ for model,tag in zip(models_to_map,modeltags_to_map):
 
 call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
                     varlist,obsdicts,y0,yf)
-
 
 #######################################################################
 #  Clean up

@@ -4,18 +4,18 @@
 #
 ##########################################################
 
-figtag: 'bulkaero'
-varlist: ['aod','aaod']
+figtag: 'PAMtuning'
+varlist: ['aod','aaod','dod','ae']
 
-y0: 2003
-yf: 2008
+y0: 2014
+yf: 2015
 
-ens_models: ['CanESM51-p2']
-ens_expts:  ['historical']
+ens_models: []
+ens_expts:  []
 
-ind_models: ['CanAM-bulk','CanAM-bulk']
-ind_runids: ['v52rc0-amip','bulkaero2-aya']
+ind_models: ['CanAM-PAM','CanAM-PAM','CanAM-PAM']
+ind_runids: ['pam12-aya','pam16-aya','aerotune1-aya']
 
-models_to_map: ['CanAM-bulk']
-modeltags_to_map: ['bulkaero2-aya']
+models_to_map: ['CanAM-PAM']
+modeltags_to_map: ['pam16-aya']
 

@@ -32,8 +32,8 @@ from tqdm import tqdm
 from datetime import datetime
 
 import warnings
-#from shapely.errors import ShapelyDeprecationWarning
-#warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
+from shapely.errors import ShapelyDeprecationWarning
+warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
 warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
 warnings.filterwarnings('ignore',message='The handle <matplotlib.lines.Line2D object')
 
@@ -47,7 +47,7 @@ def plot_timeseries_seasons_combined(var,ens_models,ens_expts,
                                      cdict,lsdict,pdf_plots):
 
 
-    f = plt.figure(figsize=(15,4))
+    f = plt.figure(figsize=(16,4))
     gs = GridSpec(1,2,width_ratios=[2,1])
     ax = np.array([f.add_subplot(gs[0]),f.add_subplot(gs[1])])
     
@@ -68,12 +68,12 @@ def plot_timeseries_seasons_combined(var,ens_models,ens_expts,
             ds = readers.read_model_ensemble(model,tag,var,y0,yf)
             if 'run' in ds.dims: ds = ds.chunk(dict(run=-1))
             c,ls = cdict[model], lsdict[model]
-            label = '%s (%s)'%(model,ds.dims['run'])
+            label = '%s\n(%s)'%(model,ds.dims['run'])
 
         elif simtype=='ind':
             ds = readers.read_model_singlerlzn(model,tag,var,y0,yf)
             c,ls = cdict[tag], lsdict[tag]
-            label = '%s (%s)'%(tag,model)
+            label = '%s\n(%s)'%(tag,model)
             
         ts = ds[var].weighted(np.cos(np.deg2rad(ds.lat))).mean(('lat','lon'))   
         ts_season = ts.groupby(ts.time.dt.month).mean('time')
@@ -123,8 +123,9 @@ def plot_timeseries_seasons_combined(var,ens_models,ens_expts,
         ax[i].set_ylim(ylim)
     ax[1].set_yticklabels('')
     
-    ax[0].legend(loc='upper left')
-    #plt.subplots_adjust(left=0.05,right=0.85,wspace=0.05)
+    plt.subplots_adjust(left=0.05,right=0.85,wspace=0.05)
+    ax[0].legend(loc='upper left',bbox_to_anchor=(1.05,0.95),
+                 bbox_transform=ax[1].transAxes)
     
     plt.savefig(pdf_plots,format='pdf')
     
@@ -221,10 +222,10 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
     
     # build taylor diagram axes
     ax = []
-    rects = {1:[111], 2:[121,122], 3:[131,132,133], 4:[221,222,223,224]}
+    rects = {1:[111], 2:[121,122], 3:[221,222,223], 4:[221,222,223,224]}
     for var,rect in zip(varlist,rects[len(varlist)]):
         ax.append(TaylorDiagram(np.nanstd(satrefs[var]),fig=f,rect=rect,
-                                label='obs mean',srange=(0,2)))
+                                label='obs mean',srange=(0,3)))
 
     
     # -- iterate over sims ------------------------------------------------------
@@ -241,13 +242,13 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
                 ds = readers.read_model_ensemble(model,tag,var,y0,yf)
                 if 'run' in ds.dims: ds = ds.chunk(dict(run=-1))
                 c,mk = cdict[model], mkdict[model]
-                label = '%s (%s)'%(model,ds.dims['run'])
+                label = '%s\n(%s)'%(model,ds.dims['run'])
 
             # read in data: single realizations
             elif simtype=='ind':
                 ds = readers.read_model_singlerlzn(model,tag,var,y0,yf)
                 c,mk = cdict[tag], mkdict[tag]
-                label = '%s (%s)'%(tag,model)
+                label = '%s\n(%s)'%(tag,model)
                     
             # process data
             ds = regrid(ds.mean('time'),res=2)
@@ -281,13 +282,21 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
     for i,var in enumerate(varlist):
         ax[i]._ax.set_title(var,fontweight='bold')
         ax[i].add_grid()
-        contours = ax[i].add_contours(levels=5,colors='0.9')
+        ax[i].add_contours(levels=5,colors='0.9')
+        ax[i]._ax.tick_params(axis='x',rotation=45)
 
-    # one legend for whole fig, using ax[0] (usually AOD) - most obs    
-    f.legend(ax[0].samplePoints,[p.get_label() for p in ax[0].samplePoints],
-             numpoints=1,loc='upper left',bbox_to_anchor=(0.05,1.4),
-             bbox_transform=ax[0]._ax.transAxes,ncol=3)
-    plt.subplots_adjust(hspace=0.3,wspace=0.3)
+    # one legend for whole fig  
+    pts,labs = ax[0].samplePoints, [p.get_label() for p in ax[0].samplePoints]
+    for a in ax[1:]: 
+        ptsi = a.samplePoints
+        pts.extend([pt for pt in ptsi if pt.get_label() not in labs])
+        labs.extend([pt.get_label() for pt in ptsi if pt.get_label() not in labs])
+    anchor = ax[1] if len(varlist)==4 else ax[-1]
+    f.legend(pts,labs,numpoints=1,loc='upper left',bbox_to_anchor=(1.1,1),
+             bbox_transform=anchor._ax.transAxes)
+    
+    right = 0.9 if len(varlist)==3 else 0.7
+    plt.subplots_adjust(hspace=0.3,wspace=0.3,right=right)
     plt.savefig(pdf_plots,format='pdf')
 
     return
@@ -326,7 +335,7 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
     pdf_plots = PdfPages('plots/globalproperties_%s.pdf'%figtag)
 
     simtags = ens_models+ind_runids
-    sats = ['MODIS Aqua','MISR','CALIOP']
+    sats = ['MODIS Aqua','MISR','CALIOP','MIDAS','ACROS']
 
     # set colors to be consistent from plot to plot
     cdict_sim = {tag:plt.cm.hsv(i/len(simtags)) for i,tag in enumerate(simtags)}
@@ -335,7 +344,8 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
 
     # set linestyles to be consistent from plot to plot
     lsdict_sim = {tag:'-' for tag in simtags}
-    lsdict_obs = {'MODIS Aqua':'--', 'MISR':':', 'CALIOP':'-.'}
+    lsdict_obs = {'MODIS Aqua':'--', 'MISR':':', 'CALIOP':'-.', 
+                  'MIDAS':'--', 'ACROS':'-.'}
     lsdict = {**lsdict_sim,**lsdict_obs}
 
     # set markerstyles to be consistent from plot to plot (currently only used in Taylor fig)
