@@ -11,6 +11,12 @@
 #  And that str will be either 'YYYY' or 'YYYY-MM'. 
 #  Other formats are not accepted (except I guess 'YYYY-MM-DD').
 #
+#  If there is no data available for some or all of the requested
+#  period, we return "dummy" data (same resoln but all nan's).
+#  Variable convention: 
+#    - ymin,ymax = years that have data available
+#    - years = years for which data have been requested
+#
 #  All output is in (lat,lon,time) with time as monthly means.
 #
 #  Fields get reordered onto lon = (-180,180), lat = (-90,90).
@@ -81,7 +87,7 @@ def standardize_grid(ds):
         ds.coords['lon'] = (ds.coords['lon'] + 180.) % 360. - 180.
         ds = ds.sortby(ds.lon)
         
-    # if lat is on (90,90), reflect to (-90,90)
+    # if lat is on (90,-90), reflect to (-90,90)
     if ds.lat[0]>0:
         ds.coords['lat'] = ds.coords['lat'][::-1]
         for var in ds.data_vars:
@@ -122,7 +128,49 @@ def standardize_calendar(ds,years,months):
     
     return ds
 
-   
+
+#-----------------------------------------------------------------------------
+#  Build dummy ds's for y/m combos that don't have data
+#-----------------------------------------------------------------------------
+
+def extend_dslist(dslist,ymin,ymax,years,var):
+
+    # ymin,ymax = years that have data available
+    # years = years for which data have been requested
+    # if there is no overlap, len(dslist)=0 and we build from scratch
+    # (this is the only case in which we need var)
+
+    if len(dslist)==0: 
+        ref = xr.Dataset(data_vars={var:(['lat','lon'], np.ones((90,180))*np.nan)},
+                         coords={'lat':np.arange(-90,90,2),'lon':np.arange(-180,180,2),
+                                 'time':datetime(2000,1,15)})
+    else: ref = dslist[0]
+
+    if years[0]<ymin:
+        prelist = [xr.full_like(ref,np.nan).assign_coords({'time':datetime(y,m,15)})
+                   for y in np.arange(years[0],ymin+1) for m in np.arange(1,13)]
+    else: prelist = []
+
+    if years[-1]>ymax:
+        postlist = [xr.full_like(ref,np.nan).assign_coords({'time':datetime(y,m,15)})
+                   for y in np.arange(ymax,years[-1]+1) for m in np.arange(1,13)]
+    else: postlist = []
+
+    extended_dslist = prelist + dslist + postlist
+
+    return extended_dslist
+
+
+def build_single_dummy(ref,y,m):
+
+    # in some cases I just need a single fill, so extend_dslist doesn't help
+    dummy = xr.full_like(ref,np.nan)
+    dummy = dummy.assign_coords({'time':datetime(y,m,15)})
+
+    return dummy
+
+
+
 #-----------------------------------------------------------------------------
 #  Read Model Ensemble Data (assuming dir structure /model/experiment/var/)
 #-----------------------------------------------------------------------------
@@ -190,8 +238,8 @@ def read_misr(var,t0,tf):
     print('reading misr %s'%var)
 
     dpath = paths['misr']
+    ymin,ymax = 2001,2020
     t0,tf,years,months = interpret_t0tf(t0,tf)
-    if years[0]<2001: years = np.arange(2001,years[1]+1)
     
     if var=='aod': longvar = 'Aerosol_Optical_Depth'
     elif var=='aaod': longvar = 'Absorbing_Optical_Depth'
@@ -200,16 +248,18 @@ def read_misr(var,t0,tf):
     dslist = []
     for y in years:
         for m in months: 
+            if (y<ymin) or (y>ymax): continue
             fname = 'MISR_AM1_CGAS_%s_%d_F15_0032.nc'%(calendar.month_abbr[m].upper(),y)
             dsraw = xr.open_dataset(dpath+fname,group='Aerosol_Parameter_Average')
             vals = dsraw.sel(Band='green_558nm',Optical_Depth_Range='all')[longvar].values
             dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
-                              coords={'lat':dsraw.Latitude.values,
-                                      'lon':dsraw.Longitude.values,
-                                      'time':datetime(y,m,15)})
+                                         coords={'lat':dsraw.Latitude.values,
+                              'lon':dsraw.Longitude.values,
+                              'time':datetime(y,m,15)})
             dslist.extend([dsym])
             dsraw.close()
 
+    dslist = extend_dslist(dslist,ymin,ymax,years,var)
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
         
@@ -227,15 +277,16 @@ def read_misr(var,t0,tf):
 
 def read_modis(sat,var,t0,tf):
     
-    print('reading MODIS-%s %s from %s to %s'%(sat,var.upper(),str(t0),str(tf)))
+    print('reading MODIS-%s %s'%(sat,var))
     
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    if years[0]<2003: years = np.arange(2003,years[1]+1)
-
     dslist = []
     dpath = paths['modis-%s'%sat.lower()]
+    ymin= 2001 if sat=='Terra' else 2003
+    ymax = 2020
+    t0,tf,years,months = interpret_t0tf(t0,tf)
     
     for y in years:
+        if (y<ymin) or (y>ymax): continue
         fpaths = sorted(glob.glob(dpath+'*M3.A%d*'%y))
         if len(fpaths)!=12: 
             print('found %d fpaths for %d'%(len(fpaths),y))
@@ -245,6 +296,7 @@ def read_modis(sat,var,t0,tf):
         for m,fpath in zip(months,fpaths): 
             dslist.extend([open_modis_file(y,m,fpath,var)])
 
+    dslist = extend_dslist(dslist,ymin,ymax,years,var)
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
         
@@ -298,26 +350,31 @@ def read_midas1x1(t0,tf):
     print('reading midas dod at 1x1deg')
 
     dpath = paths['midas1x1']
-    fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
+    ymin,ymax = 2015,2020
     t0,tf,years,months = interpret_t0tf(t0,tf)
+    
     dslist = []
+    fbase = 'MODIS-AQUA_AOD-and-DOD-GRID_RESOLUTION_1.0'
     
     for y in years:
         for m in months: 
-            
+
+            if (y<ymin) or (y>ymax): continue
+        
             flist = glob.glob(dpath+'%d/%s-%d%02d*nc'%(y,fbase,y,m))
             dsi = xr.open_mfdataset(flist,drop_variables=['Latitude','Longitude']).mean('Time')
-    
+        
             nc = ncDataset(flist[0])
             coords = {'Longitude':nc['Longitude'][0,:].data,
                       'Latitude':nc['Latitude'][:,0].data,
                       'time':np.datetime64('%d-%02d-15'%(y,m))}
-        
+            
             dsi = dsi.assign_coords(coords)[['Modis-total-dust-optical-depth-at-550nm']]
             dsi = dsi.rename({'Latitude':'lat','Longitude':'lon',
                               'Modis-total-dust-optical-depth-at-550nm':'dod'})
             dslist.extend([dsi])
 
+    dslist = extend_dslist(dslist,ymin,ymax,years,'dod')
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
     ds = standardize_grid(ds)
@@ -337,15 +394,17 @@ def read_midas01x01(t0,tf):
     print('reading midas dod at 0.1x0.1deg')
     
     dpath = paths['midas01x01']
-    fbase = 'MODIS-AQUA-C061_AOD-and-DOD-V1-GRID_RESOLUTION_0.1-'
+    ymin,ymax = 2003,2017
     t0,tf,years,months = interpret_t0tf(t0,tf)
+    fbase = 'MODIS-AQUA-C061_AOD-and-DOD-V1-GRID_RESOLUTION_0.1-'
 
     dslist = []
     for y in years:
-
         ddir = dpath+'%d/GRID_RESOLUTION_0.1/'%y
         for m in months: 
             
+            if (y<ymin) or (y>ymax): continue
+
             flist = glob.glob(ddir+fbase+'%d%02d*nc'%(y,m))
             dsi = xr.open_mfdataset(flist,drop_variables=['Latitude','Longitude']).mean('Time')
     
@@ -359,6 +418,7 @@ def read_midas01x01(t0,tf):
                               'Modis-total-dust-optical-depth-at-550nm':'dod'})
             dslist.extend([dsi])
 
+    dslist = extend_dslist(dslist,ymin,ymax,years,'dod')
     ds = xr.concat(dslist,dim='time')
     for dsi in dslist: dsi.close()
     ds = ds.sel(time=slice(t0,tf))
@@ -378,8 +438,8 @@ def read_caliop(sky,daynight,var,t0,tf):
     
     print('reading caliop %s %s %s'%(sky,daynight,var))
 
+    ymin,ymax = 2007,2020
     t0,tf,years,months = interpret_t0tf(t0,tf)
-    if years[0]<2007: years = np.arange(2007,years[-1]+1)
     dslist = []
     
     if len(tf)==7: maxmonth = int(tf[5:])
@@ -387,13 +447,18 @@ def read_caliop(sky,daynight,var,t0,tf):
     else: maxmonth = 12
 
     for y in years: 
+        if (y<ymin) or (y>ymax): continue
         for m in months: 
-            if (y==2016)&(m==2):  dslist.append(caliop_dummy(dslist[-1],y,m,var))
+            if (y==2016)&(m==2):  
+                dslist.append(build_single_dummy(dslist[-1],y,m))
             elif (y==2019)&(m==11)*(sky=='AllSky')*(daynight=='Day'):
-                dslist.append(caliop_dummy(dslist[-1],y,m,var))
-            elif (y==years[-1])&(m>=maxmonth): break
-            else: dslist.append(open_caliop_file(sky,daynight,var,y,m))
+                dslist.append(build_single_dummy(dslist[-1],y,m))
+            elif (y==years[-1])&(m>=maxmonth): 
+                dslist.append(build_single_dummy(dslist[-1],y,m))
+            else: 
+                dslist.append(open_caliop_file(sky,daynight,var,y,m))
                 
+    dslist = extend_dslist(dslist,ymin,ymax,years,var)
     ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
     for dsi in dslist: dsi.close()
         
@@ -429,37 +494,6 @@ def open_caliop_file(sky,daynight,var,y,m):
     return dsym
 
 
-def caliop_dummy(ref,y,m,var):
-
-    # create fill data for months that don't have any
-    lats = ref.lat.values
-    lons = ref.lon.values
-    vals = np.ones((len(lats),len(lons)))*np.nan
-    ds = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
-                    coords={'lat':lats,'lon':lons,
-                            'time':datetime(y,m,15)})
-    return ds
-
-
-
-#-----------------------------------------------------------------------------
-#  Read Voss dust product
-#-----------------------------------------------------------------------------
-
-def read_voss(t0,tf):
-    
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    
-    dpath = paths['voss']
-    ds = xr.open_dataset(dpath+'Voss2020_DAOD_monthly_MODIS.nc')
-    newtime = np.array([np.datetime64(datetime.fromordinal(datenum).strftime('%Y-%m-%d')) 
-                        for datenum in ds.time.values.astype(int)])
-    ds = ds.assign_coords({'time':newtime}).rename({'daod':'dod'})
-    ds = ds.sel(time=slice(t0,tf))
-    ds = standardize_grid(ds)
-    
-    return ds
-
 
 
 ###################################################################################
@@ -468,12 +502,12 @@ def read_voss(t0,tf):
 
 def read_acros(var,t0,tf):
     
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    
     dpath = paths['acros']
+    ymin,ymax = 2007,2020
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+
     fcal1 = 'GlobalClearSkyMeanDustClimatology_CALIOP20072019Monthly.nc'
-    fcal2 = 'GlobalClearSkyMeanDustClimatology_CALIOP2020Monthly.nc'
-    
+    fcal2 = 'GlobalClearSkyMeanDustClimatology_CALIOP2020Monthly.nc'    
     rawds = xr.open_mfdataset([dpath+fcal1,dpath+fcal2])
     rawds = rawds.rename({'clr_hlc_aeraod':'aod','clr_hlc_dustaod':'dod'})
 
@@ -483,9 +517,60 @@ def read_acros(var,t0,tf):
 
     ds = xr.Dataset(data_vars={var:(['time','lat','lon'],np.array(datlist))},
                     coords={'time':time,'lat':rawds.lat,'lon':rawds.lon})
+    
+    # don't use extend_dslist() b/c working with a single ds with time dim
+    if years[0]<ymin:
+        prelist = [build_single_dummy(ds.sel(time='2008-01'),y,m)
+                   for y in np.arange(years[0],ymin+1) for m in months]
+        ds = xr.concat(prelist,[ds],dim='time')
+    if years[-1]>ymax:
+        postlist = [build_single_dummy(ds.sel(time='2008-01'),y,m)
+                    for y in np.arange(ymax,years[-1]+1) for m in months]
+        ds = xr.concat([ds],postlist,dim='time')
+
     ds = standardize_grid(ds).sel(time=slice(t0,tf))
     
     return ds
 
     
+
+###################################################################################
+#  POLDER
+###################################################################################
+
+def read_polder(var,t0,tf):
+
+    print('reading polder %s'%var)
+
+    dpath = paths['polder']
+    ymin,ymax = 2005,2013
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+
+    if var=='aod': longvar = 'AOD565'
+    elif var=='aaod': longvar = 'AAOD565'
+    elif var=='ssa': longvar = 'SSA565'
+    elif var=='ae': longvar = 'AExp'
+
+    dslist = []
+    for y in years:
+        if (y<ymin) or (y>ymax): continue
+        for m in months: 
+            fname = 'GRASP_POLDER_L3_%d%02d.1degree.nc'%(y,m)
+            dsraw = xr.open_dataset(dpath+fname)[[longvar]]
+            # shape (x,y=lon) but  x = -lat? need to reflect.
+            vals = dsraw[longvar].values[::-1,:] 
+            dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
+                              coords={'lat':dsraw.x.values,
+                                      'lon':dsraw.y.values,
+                                      'time':datetime(y,m,15)})
+            dslist.extend([dsym])
+            dsraw.close()
+
+    dslist = extend_dslist(dslist,ymin,ymax,years,var)
+    ds = xr.concat(dslist,dim='time').sel(time=slice(t0,tf))
+    for dsi in dslist: dsi.close()
+        
+    ds = standardize_grid(ds)
+    
+    return ds
 

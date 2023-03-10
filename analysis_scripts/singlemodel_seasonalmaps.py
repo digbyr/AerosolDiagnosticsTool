@@ -58,7 +58,7 @@ def plot_maps_comparisons(model,tag,simtype,season,y0,yf,varlist,simdata,obsdata
 
     cmaps = {'aod':'cividis', 'aaod':'afmhot_r', 'dod':'hot_r',
              'ae':'BuPu', 'dif':'coolwarm'}
-    vmaxs = {'aod':0.5, 'aaod':0.1, 'dod':0.5, 'ae':2}
+    vmaxs = {'aod':0.5, 'aaod':0.03, 'dod':0.5, 'ae':2}
 
     # -- plot maps -------------------------------------------------------
 

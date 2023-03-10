@@ -335,7 +335,7 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
     pdf_plots = PdfPages('plots/globalproperties_%s.pdf'%figtag)
 
     simtags = ens_models+ind_runids
-    sats = ['MODIS Aqua','MISR','CALIOP','MIDAS','ACROS']
+    sats = ['MODIS Aqua','MISR','CALIOP','MIDAS','ACROS','POLDER-GRASP']
 
     # set colors to be consistent from plot to plot
     cdict_sim = {tag:plt.cm.hsv(i/len(simtags)) for i,tag in enumerate(simtags)}
@@ -345,7 +345,7 @@ def call_compare_global(figtag,ens_models,ens_expts,ind_models,ind_runids,
     # set linestyles to be consistent from plot to plot
     lsdict_sim = {tag:'-' for tag in simtags}
     lsdict_obs = {'MODIS Aqua':'--', 'MISR':':', 'CALIOP':'-.', 
-                  'MIDAS':'--', 'ACROS':'-.'}
+                  'MIDAS':'--', 'ACROS':'-.','POLDER-GRASP':(0,(4,1,1,1,1,1,1,1,1,1))}
     lsdict = {**lsdict_sim,**lsdict_obs}
 
     # set markerstyles to be consistent from plot to plot (currently only used in Taylor fig)
