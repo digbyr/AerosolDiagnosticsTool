@@ -107,7 +107,10 @@ def plot_timeseries_seasons_combined(var,ens_models,ens_expts,
         ts_season = ts.groupby(ts.time.dt.month).mean('time')
         time = [np.datetime64(t) for t in ts.time.values]
             
-        ax[0].plot(time,ts,c=cdict[sat],ls=lsdict[sat],lw=3,label=sat)
+        # we use POLDER climatology for seasons, zonal means, etc but not ts
+        if (sat=='POLDER-GRASP') & (y0>2012): continue
+        else: ax[0].plot(time,ts,c=cdict[sat],ls=lsdict[sat],lw=3,label=sat)
+        
         ax[1].plot(months,ts_season,c=cdict[sat],ls=lsdict[sat],lw=3,label=sat)    
     
     
@@ -283,7 +286,6 @@ def plot_taylor_diagram(varlist,ens_models,ens_expts,
         ax[i]._ax.set_title(var,fontweight='bold')
         ax[i].add_grid()
         ax[i].add_contours(levels=5,colors='0.9')
-        ax[i]._ax.tick_params(axis='x',rotation=45)
 
     # one legend for whole fig  
     pts,labs = ax[0].samplePoints, [p.get_label() for p in ax[0].samplePoints]

@@ -9,8 +9,8 @@ import xesmf as xe
 
 def regridder_global(ds,res=1):
 
-    ds_target = xr.Dataset({'lat':(['lat'],np.arange(-90,90,res)),
-                            'lon':(['lon'],np.arange(-180,180,res))})
+    ds_target = xr.Dataset({'lon':(['lon'],np.arange(-180,180,res)),
+                            'lat':(['lat'],np.arange(-90,91,res))})
     regridder = xe.Regridder(ds,ds_target,'bilinear',periodic=True)
     regridded = regridder(ds)
 

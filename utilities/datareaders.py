@@ -139,26 +139,34 @@ def extend_dslist(dslist,ymin,ymax,years,var):
     # years = years for which data have been requested
     # if there is no overlap, len(dslist)=0 and we build from scratch
     # (this is the only case in which we need var)
+    # if I actually have a full ds (pre-concatenated) not a dslist,
+    # len(dslist) = 1 and we select 1 time to use as ref
 
     if len(dslist)==0: 
         ref = xr.Dataset(data_vars={var:(['lat','lon'], np.ones((90,180))*np.nan)},
                          coords={'lat':np.arange(-90,90,2),'lon':np.arange(-180,180,2),
                                  'time':datetime(2000,1,15)})
+    
+    elif (len(dslist)==1) & ('time' in dslist[0].dims):
+        ref = dslist[0].isel(time=0)
+    
     else: ref = dslist[0]
 
     if years[0]<ymin:
         prelist = [xr.full_like(ref,np.nan).assign_coords({'time':datetime(y,m,15)})
-                   for y in np.arange(years[0],ymin+1) for m in np.arange(1,13)]
+                   for y in np.arange(years[0],ymin) for m in np.arange(1,13)]
     else: prelist = []
 
     if years[-1]>ymax:
         postlist = [xr.full_like(ref,np.nan).assign_coords({'time':datetime(y,m,15)})
-                   for y in np.arange(ymax,years[-1]+1) for m in np.arange(1,13)]
+                   for y in np.arange(ymax+1,years[-1]+1) for m in np.arange(1,13)]
     else: postlist = []
-
+    
     extended_dslist = prelist + dslist + postlist
 
     return extended_dslist
+
+
 
 
 def build_single_dummy(ref,y,m):
@@ -211,7 +219,7 @@ def read_model_ensemble(model,expt,var,t0,tf):
 #  Read Model Data - Single Rlzn  (assuming dir structure /model/runid/<all files>)
 #-----------------------------------------------------------------------------
 
-def read_model_singlerlzn(model,runid,var,t0,tf):
+def read_model_singlerlzn(model,runid,var,t0,tf,aux=False):
     
     dpath = paths['model_singles']+'%s/%s/'%(model,runid)
     try: 
@@ -220,11 +228,23 @@ def read_model_singlerlzn(model,runid,var,t0,tf):
         ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%modelvars[var]))
         ds = ds.rename({modelvars[var]:var})
 
-    t0,tf,years,months = interpret_t0tf(t0,tf)
-    ds = standardize_calendar(ds,years,months).sel(time=slice(t0,tf))
     inv_keys = {v: k for k, v in modelvars.items() if v in list(ds.variables)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
+
+    # if auxilliary var (land mask, grid cell area, etc) w/o time dim, 
+    # return without further processing 
+    if aux: return ds 
+
+    t0,tf,years,months = interpret_t0tf(t0,tf)
+    ds = standardize_calendar(ds,years,months)
+
+    simyrs = ds.time.dt.year.values
+    if (simyrs[0]>years[0]) or (simyrs[-1]<years[-1]):
+        dslist = extend_dslist([ds],simyrs[0],simyrs[-1],years,var)
+        ds = xr.concat(dslist,dim='time')
+
+    ds = ds.sel(time=slice(t0,tf))
     
     return ds
 
@@ -543,7 +563,7 @@ def read_polder(var,t0,tf):
     print('reading polder %s'%var)
 
     dpath = paths['polder']
-    ymin,ymax = 2005,2013
+    ymin,ymax = 2006,2012
     t0,tf,years,months = interpret_t0tf(t0,tf)
 
     if var=='aod': longvar = 'AOD565'
@@ -560,8 +580,8 @@ def read_polder(var,t0,tf):
             # shape (x,y=lon) but  x = -lat? need to reflect.
             vals = dsraw[longvar].values[::-1,:] 
             dsym = xr.Dataset(data_vars={var:(['lat','lon'],vals)},
-                              coords={'lat':dsraw.x.values,
-                                      'lon':dsraw.y.values,
+                              coords={'lat':dsraw.y.values,
+                                      'lon':dsraw.x.values,
                                       'time':datetime(y,m,15)})
             dslist.extend([dsym])
             dsraw.close()
