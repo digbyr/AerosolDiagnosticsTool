@@ -1,11 +1,11 @@
 # Aerosol Diagnostics Tool
 
-**The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD) and absorbing (AAOD) optical depth, and angstrom exponent (AE), analyses are currently supported.** 
+**The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD), absorbing (AAOD), and dust (DOD) optical depth, and angstrom exponent (AE), analyses are currently supported.** 
 
 The default output contains: 
   
   * Timeseries, zonal means, and taylor diagrams for each variable of interest, comparing the selected models against each other and against observations.
-  * For specified models, spatial maps showing the distribution of each variable in the model, in MISR, and the difference between the two.
+  * For specified models, spatial maps showing the distribution of each variable in the model, in two observational reference datasets, and the difference between these.
 
 The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts.  
 
