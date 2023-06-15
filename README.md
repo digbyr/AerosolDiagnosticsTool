@@ -2,17 +2,18 @@
 
 **The Aerosol Diagnostics Tool produces diagnostic figures comparing simulated aerosol optical depth against remotely-sensed observational estimates. Total (AOD), absorbing (AAOD), and dust (DOD) optical depth, and angstrom exponent (AE), analyses are currently supported.** 
 
-The default output contains: 
+Three types of figures can be produced: 
   
-  * Timeseries, zonal means, and taylor diagrams for each variable of interest, comparing the selected models against each other and against observations.
-  * For specified models, spatial maps showing the distribution of each variable in the model, in two observational reference datasets, and the difference between these.
+  * Timeseries, zonal means, and taylor diagrams for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_globalproperties.py*)
+  * For specified models, spatial maps showing the distribution of each variable in the model, in two observational reference datasets, and the difference between these, for each season. (*singlemodel_seasonalmaps.py*)
+  * Maps, timeseries, and taylor diagrams for each variable of interest, divided into land vs ocean, comparing the selected models against each other and against observations. (*comparemodels_landvsocn.py*)
 
 The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts.  
 
   * The **main coordinating script** is *aerosol_diagnostics.py*. This script reads in user-specified parameters from config.yaml and outputs aerosol diagnostic figures in a series of multi-page pdfs. The wiki includes sample output pdfs for reference. It should run without specific user input, but you can edit the calls to the analysis scrips if you would like to modify what is being plotted.
   
   * The **config files** need to be filled out by the user. There are three: 
-      * *config.yaml* specifies the models to be evaluated, the years + variables to be compared, and the name of the output pdf. 
+      * *config.yaml* specifies the models to be evaluated, the years + variables to be compared, types of figures to plot, and the name of the output pdf. 
       * *datapaths.yaml* specifies the paths to the different datasets.
       * *modelvars.yaml* specifies the variable names used in the simulated datasets.
   
@@ -28,9 +29,10 @@ The Aerosol Diagnostics Tool consists of a main coordinating script which calls 
 
 
 **The wiki provides documentation on:**
-  * The python packages required for the Aerosol Diagnostic Tool to run;
-  * Instructions for filling out the config files, and expected directory structure in which data should be organized;
+  * The python packages required for the ADT to run;
+  * The expected directory structure in which data should be organized;
+  * Instructions for filling out the config files;
   * The observational datasets used (a brief overview of each instrument, and where to find the data);
-  * The inputs used by each function in the data-reader and analysis scripts.
-  * Sample output demonstrating the type of figures created by the Tool.
+  * The inputs used by each function in the datareader and analysis scripts;
+  * Sample output demonstrating the type of figures created by the ADT.
 
