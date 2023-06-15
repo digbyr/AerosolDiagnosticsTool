@@ -4,9 +4,9 @@
 
 Three types of figures can be produced: 
   
-  * Timeseries, zonal means, and taylor diagrams for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_globalproperties.py*)
-  * For specified models, spatial maps showing the distribution of each variable in the model, in two observational reference datasets, and the difference between these, for each season. (*singlemodel_seasonalmaps.py*)
-  * Maps, timeseries, and taylor diagrams for each variable of interest, divided into land vs ocean, comparing the selected models against each other and against observations. (*comparemodels_landvsocn.py*)
+  * Global properties (timeseries, seasonal cycles, zonal means, and taylor diagrams) for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_globalproperties.py*)
+  * Spatial maps showing the distribution of each variable in a specified model, in two observational reference datasets, and the difference between these, for each season. (*singlemodel_seasonalmaps.py*)
+  * Land vs ocean properties (maps, timeseries, and taylor diagrams) for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_landvsocn.py;* note that this feature is less polished than the others.)
 
 The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts.  
 
@@ -29,10 +29,8 @@ The Aerosol Diagnostics Tool consists of a main coordinating script which calls 
 
 
 **The wiki provides documentation on:**
-  * The python packages required for the ADT to run;
-  * The expected directory structure in which data should be organized;
-  * Instructions for filling out the config files;
-  * The observational datasets used (a brief overview of each instrument, and where to find the data);
-  * The inputs used by each function in the datareader and analysis scripts;
-  * Sample output demonstrating the type of figures created by the ADT.
+  * initial setup (required python packages, where to find the observational data, how to organize your data so the ADT can find what it needs);
+  * running the ADT (filling out the config files, running the main script);
+  * sample output;
+  * and miscellaneous other documentation.
 
