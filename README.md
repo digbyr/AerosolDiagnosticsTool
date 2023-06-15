@@ -6,7 +6,7 @@ Three types of figures can be produced:
   
   * **Global properties** (timeseries, seasonal cycles, zonal means, and taylor diagrams) for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_globalproperties.py*)
   * **Spatial maps** showing the distribution of each variable in a specified model, in two observational reference datasets, and the difference between these, for each season. (*singlemodel_seasonalmaps.py*)
-  * **Land vs ocean properties** (maps, timeseries, and taylor diagrams) for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_landvsocn.py;* note that this feature is less polished than the others.)
+  * **Land vs ocean properties** (timeseries and taylor diagrams) for each variable of interest, comparing the selected models against each other and against observations. (*comparemodels_landvsocn.py;* note that this feature is less polished than the others.)
 
 The Aerosol Diagnostics Tool consists of a main coordinating script which calls separate analysis scrips, three config files, and a small number of utility scripts.  
 
