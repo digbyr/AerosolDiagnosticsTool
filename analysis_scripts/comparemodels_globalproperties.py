@@ -36,6 +36,7 @@ from shapely.errors import ShapelyDeprecationWarning
 warnings.filterwarnings('ignore',category=ShapelyDeprecationWarning)
 warnings.filterwarnings('ignore',message='Input array is not C_CONTIGUOUS')
 warnings.filterwarnings('ignore',message='The handle <matplotlib.lines.Line2D object')
+warnings.filterwarnings('ignore',message='The label \'_child')
 
 #########################################################################
 #  PLOTS: TIMESERIES

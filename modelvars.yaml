@@ -2,5 +2,6 @@ lat: lat
 lon: lon
 aod: od550aer
 aaod: abs550aer
-ae: ae
+ae: angaer
 dod: od550dust
+lndmsk: sftlf

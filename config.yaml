@@ -4,18 +4,19 @@
 #
 ##########################################################
 
-figtag: 'PAMtuning'
-varlist: ['aod','aaod','dod','ae']
+varlist: ['aod','aaod','ae','dod']
+figs_to_plot: ['seasonal_maps','compare_global','compare_landocn']
+figtag: 'ADTdemo'
 
-y0: 2014
+y0: 2015
 yf: 2015
 
 ens_models: []
 ens_expts:  []
 
-ind_models: ['CanAM-PAM','CanAM-PAM','CanAM-PAM']
-ind_runids: ['pam12-aya','pam16-aya','aerotune1-aya']
+ind_models: ['GEM-MACH-PAM','GEM-MACH-PAM','GEM-MACH-PAM','GEM-MACH-PAM']
+ind_runids: ['GM3PE.14.ds','GM3PE.15.ncv','GM3PE.17.ds3','GM3PE.18.ds4']
 
-models_to_map: ['CanAM-PAM']
-modeltags_to_map: ['pam16-aya']
+models_to_map: ['GEM-MACH-PAM']
+modeltags_to_map: ['GM3PE.18.ds']
 

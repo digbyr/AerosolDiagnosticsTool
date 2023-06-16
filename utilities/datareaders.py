@@ -110,7 +110,7 @@ def standardize_calendar(ds,years,months):
         return ds
     
     # some models: time coord is just months (arbitrarily assign to y=yf)
-    if np.array_equal(ds.time.values,months): 
+    elif np.array_equal(ds.time.values,months): 
         newtime = np.array([datetime(years[-1],m,15) for m in months])
         ds = ds.assign_coords({'time':newtime})
         
@@ -122,9 +122,10 @@ def standardize_calendar(ds,years,months):
             ds = ds.assign_coords({'time':newtime})
 
     # otherwise it's probably some other datetime-esque format
-    ds['time'] = ds.indexes['time'].to_datetimeindex()
-    newtime = np.array([datetime(t.dt.year,t.dt.month,16,0) for t in ds.time])
-    ds = ds.assign_coords({'time':newtime.astype('datetime64[ns]')})
+    else: 
+        ds['time'] = ds.indexes['time'].to_datetimeindex()
+        #newtime = np.array([datetime(t.dt.year,t.dt.month,16,0) for t in ds.time])
+        #ds = ds.assign_coords({'time':newtime.astype('datetime64[ns]')})
     
     return ds
 
@@ -208,7 +209,7 @@ def read_model_ensemble(model,expt,var,t0,tf):
     for dsi in dslist: dsi.close()
     ds = ds.sel(time=slice(t0,tf))
                 
-    inv_keys = {v: k for k, v in modelvars.items() if v in list(ds.variables)}
+    inv_keys = {v: k for k, v in modelvars.items() if (v in list(ds.variables))*(k!=v)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
 
@@ -216,7 +217,7 @@ def read_model_ensemble(model,expt,var,t0,tf):
 
 
 #-----------------------------------------------------------------------------
-#  Read Model Data - Single Rlzn  (assuming dir structure /model/runid/<all files>)
+#  Read Model Data - Ind Rlzn  (assuming dir structure /model/runid/<all files>)
 #-----------------------------------------------------------------------------
 
 def read_model_singlerlzn(model,runid,var,t0,tf,aux=False):
@@ -225,10 +226,18 @@ def read_model_singlerlzn(model,runid,var,t0,tf,aux=False):
     try: 
         ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%var))
     except:
-        ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%modelvars[var]))
-        ds = ds.rename({modelvars[var]:var})
+        try:
+            ds = xr.open_mfdataset(glob.glob(dpath+'%s*nc'%modelvars[var]))
+            ds = ds.rename({modelvars[var]:var})
+        except: 
+            print('tried opening files at')
+            print(dpath+'%s*nc'%var)
+            print('and')
+            print(dpath+'%s*nc'%modelvars[var])
+            print('but found neither')
 
-    inv_keys = {v: k for k, v in modelvars.items() if v in list(ds.variables)}
+
+    inv_keys = {v: k for k, v in modelvars.items() if (v in list(ds.variables))*(k!=v)}
     ds = ds.rename(inv_keys)
     ds = standardize_grid(ds)
 
@@ -531,7 +540,7 @@ def read_acros(var,t0,tf):
     rawds = xr.open_mfdataset([dpath+fcal1,dpath+fcal2])
     rawds = rawds.rename({'clr_hlc_aeraod':'aod','clr_hlc_dustaod':'dod'})
 
-    time = [datetime(y,m,16) for y in rawds['year'] for m in rawds['month']]
+    time = [datetime(int(y),int(m),16) for y in rawds['year'] for m in rawds['month']]
     datlist = [rawds.sel(year=y,month=m)[var].values 
                for y in rawds['year'] for m in rawds['month']]
 
